@@ -1,0 +1,63 @@
+from logging import Logger, getLogger
+from typing import Optional
+
+from ..auth.rbac import PermissionChecker, PermissionProtocol, RolePermissions
+from ..auth.user import User
+
+
+class BaseAPI:
+    """Base class for all API classes providing common functionality.
+
+    Provides access to the server configuration and common permission
+    checking utilities for course-based operations.
+
+    Attributes:
+        server_config_file: The path to the server configuration file
+        server: The Server configuration containing courses, profiles, and roles
+    """
+
+    def __init__(
+        self,
+        role_permissions: RolePermissions,
+        logger: Optional[Logger] = None,
+    ):
+        """Initialize the API with application context.
+
+        Args:
+            context: The application context object
+            role_permissions: A mapping of roles to their associated permissions
+            logger: Optional logger for logging purposes
+        """
+        if logger is None:
+            logger = getLogger(__name__)
+        self._role_permissions = role_permissions
+
+    def permission_checker(self, user: User) -> PermissionChecker:
+        """Get a PermissionChecker instance for the given user.
+
+        Args:
+            user: The User object for whom to create the PermissionChecker
+        Returns:
+            A PermissionChecker instance initialized with the user's permissions
+        """
+        return PermissionChecker(user, self._role_permissions)
+
+    def has_permission(
+        self,
+        user: User,
+        permission: PermissionProtocol,
+        course_id: Optional[str] = None,
+        term_id: Optional[str] = None,
+    ) -> bool:
+        """Check if the user has the required permission.
+
+        Args:
+            user: The User object to check permissions for
+            permission: The Permission to check
+            course_id: Optional course ID for context-specific permissions
+            term_id: Optional term ID for context-specific permissions
+        Returns:
+            True if the user has the required permission, False otherwise
+        """
+        checker = self.permission_checker(user)
+        return checker.has_permission(permission, course_id=course_id, term_id=term_id)
