@@ -29,6 +29,18 @@ Permissions are enforced using decorators and integrated with JupyterHub's group
 - ✅ **RFC 9457 Compliant Errors**: Structured error responses for permission denials
 - ✅ **Extensible**: Custom permissions can be added as needed
 
+## Group Naming Convention
+
+Roles are derived from JupyterHub group names.
+
+| Scope | Pattern | Example |
+|---|---|---|
+| Hub | `{role}` | `hub_admin` |
+| Course | `course.{course_id}.{role}` | `course.cs101.course_admin` |
+| Term | `term.{course_id}.{term_id}.{role}` | `term.cs101.2024_ws.student` |
+
+The final group segment determines the assigned role.
+
 ---
 
 ## 📦 Installation
@@ -83,20 +95,6 @@ pip install -e .
 ---
 
 ## 🔧 Usage
-
-### Basic Setup
-
-```python
-from e2x_hub_rbac.auth.user import User
-from e2x_hub_rbac.auth.rbac import Role, RoleAssignment, Scope
-from e2x_hub_rbac.auth.decorator import require_permission
-
-# Create a user
-user = User(username="student1", groups=["course_123_term_2024_ws"])
-
-# Assign a role
-role_assignment = RoleAssignment.term(Role.STUDENT, course_id="123", term_id="2024_ws")
-```
 
 ### Permission Decorator
 
