@@ -40,6 +40,10 @@ dev = [
   "build",
   "twine",
 ]
+test = [
+  "pytest",
+  "pytest-cov",
+]
 docs = [
   "sphinx",
   "pydata-sphinx-theme",
@@ -47,6 +51,9 @@ docs = [
 
 [tool.hatch.version]
 path = "e2x_hub_rbac/__about__.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.tbump]
 github_url = "https://github.com/Digiklausur/e2x-hub-rbac"
