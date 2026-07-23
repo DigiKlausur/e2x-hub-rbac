@@ -8,38 +8,36 @@ Role-Based Access Control (RBAC) for JupyterHub within the e2x ecosystem, suppor
 
 ---
 
-## 📌 Overview
+## Overview
 
-`e2x-hub-rbac` provides a flexible and scalable Role-Based Access Control system for JupyterHub, designed to work seamlessly within the e2x ecosystem. It enables fine-grained permission management across three hierarchical scopes:
+`e2x-hub-rbac` maps JupyterHub group memberships to predefined roles, and lets consuming packages attach permissions to those roles.
 
-- **Hub-level**: Global permissions for administrators and course creators
-- **Course-level**: Permissions scoped to specific courses
-- **Term-level**: Permissions scoped to specific terms within courses
+The core idea:
 
-Permissions are enforced using decorators and integrated with JupyterHub's group system, allowing for dynamic role assignments and permission checks.
+1. A user's JupyterHub groups are parsed into **role assignments** at a specific scope (Hub, Course, or Term).
+2. Consuming packages define **permissions** and a **role → permissions** mapping.
+3. The `PermissionChecker` (or the `require_permission` decorator) evaluates whether a user's roles grant a requested permission within the given scope.
 
 ---
 
-## 🚀 Features
+## Predefined Roles
 
-- ✅ **Hierarchical Scopes**: Manage permissions at Hub, Course, and Term levels
-- ✅ **Role-Based Permissions**: Predefined roles with specific permissions (e.g., `HUB_ADMIN`, `COURSE_ADMIN`, `STUDENT`)
-- ✅ **Decorator-Based Enforcement**: Easy-to-use decorators for permission checks in API endpoints
-- ✅ **JupyterHub Integration**: Leverages JupyterHub groups for role assignments
-- ✅ **RFC 9457 Compliant Errors**: Structured error responses for permission denials
-- ✅ **Extensible**: Custom permissions can be added as needed
+Roles are fixed and ship with this package.
 
-## Group Naming Convention
+| Role | Scope | Group name format |
+|------|-------|-------------------|
+| `HUB_ADMIN` | Hub | `hub.hub_admin` |
+| `COURSE_CREATOR` | Hub | `hub.course_creator` |
+| `COURSE_ADMIN` | Course | `course.{course_id}.course_admin` |
+| `TERM_ADMIN` | Term | `term.{course_id}.{term_id}.term_admin` |
+| `GRADER` | Term | `term.{course_id}.{term_id}.grader` |
+| `STUDENT` | Term | `term.{course_id}.{term_id}.student` |
 
-Roles are derived from JupyterHub group names.
+## Permission Resolution
 
-| Scope | Pattern | Example |
-|---|---|---|
-| Hub | `{role}` | `hub_admin` |
-| Course | `course.{course_id}.{role}` | `course.cs101.course_admin` |
-| Term | `term.{course_id}.{term_id}.{role}` | `term.cs101.2024_ws.student` |
-
-The final group segment determines the assigned role.
+- **Hub** roles apply globally to any resource.
+- **Course** roles apply to their course and all terms within it.
+- **Term** roles apply only to their specific course + term combination.
 
 ---
 
@@ -61,219 +59,86 @@ pip install -e .
 
 ---
 
-## 🏗️ Architecture
+## Usage
 
-### Core Components
+### 1. Define your permissions
 
-| Component | Description |
-|-----------|-------------|
-| `User` | Represents a user with username, admin status, and group memberships |
-| `Role` | Defines roles with hierarchical scopes (Hub, Course, Term) |
-| `PermissionProtocol` | Interface for defining permissions |
-| `RoleAssignment` | Associates roles with users at specific scopes |
-| `require_permission` | Decorator for enforcing permissions on methods |
-
-### Scopes
-
-| Scope | Description |
-|-------|-------------|
-| `HUB` | Global permissions for the entire JupyterHub instance |
-| `COURSE` | Permissions scoped to a specific course |
-| `TERM` | Permissions scoped to a specific term within a course |
-
-### Roles
-
-| Role | Scope | Description |
-|------|-------|-------------|
-| `HUB_ADMIN` | Hub | Full administrative access to the entire JupyterHub instance |
-| `COURSE_CREATOR` | Hub | Can create new courses |
-| `COURSE_ADMIN` | Course | Administrative access to a specific course |
-| `TERM_ADMIN` | Term | Administrative access to a specific term within a course |
-| `GRADER` | Term | Can grade assignments within a term |
-| `STUDENT` | Term | Standard student access within a term |
-
----
-
-## 🔧 Usage
-
-### Permission Decorator
-
-Use the `require_permission` decorator to enforce permissions on methods:
+`PermissionProtocol` is a structural protocol — implement it with class-level `code` and `required_scope` attributes.
 
 ```python
-from e2x_hub_rbac.auth import (
-    User,
-    PermissionProtocol,
-    RolePermissions,
-    Role,
-    Scope,
-    require_permission,
-)
-from typing import Optional
-from e2x_hub_rbac.api import BaseAPI
-from logging import Logger
+from e2x_hub_rbac.auth import Scope, PermissionProtocol, Role, RolePermissions
 
-
-class MyPermission(PermissionProtocol):
-    code = "my_permission"
+class Permission(PermissionProtocol):
+    code = "view_profile"
     required_scope = Scope.TERM
 
-
-# Define the mapping from roles to permissions
 ROLE_PERMISSIONS: RolePermissions = {
-    Role.COURSE_ADMIN: frozenset({MyPermission}),
-    Role.STUDENT: frozenset(),
-    # Add more roles and permissions here...
+    Role.HUB_ADMIN:      frozenset({Permission}),
+    Role.COURSE_CREATOR: frozenset(),
+    Role.COURSE_ADMIN:   frozenset({Permission}),
+    Role.TERM_ADMIN:     frozenset({Permission}),
+    Role.GRADER:         frozenset({Permission}),
+    Role.STUDENT:        frozenset({Permission}),
 }
+```
 
+> **Note:** `ROLE_PERMISSIONS` must include an entry for every `Role` value, because the checker looks up each of the user's assigned roles in this mapping.
+
+### 2. Check permissions directly
+
+```python
+from e2x_hub_rbac.auth import User, PermissionChecker
+
+user = User(username="alice", groups=["term.math101.2024ws.student"])
+checker = PermissionChecker(user, ROLE_PERMISSIONS)
+
+checker.has_permission(Permission, course_id="math101", term_id="2024ws")  # True
+checker.has_permission(Permission, course_id="cs101",   term_id="2024ws")  # False
+```
+
+### 3. Use the decorator with `BaseAPI`
+
+Extend `BaseAPI` and annotate methods with `@require_permission`. The decorator resolves `user`, `course_id`, and `term_id` from the method arguments by name.
+
+```python
+from e2x_hub_rbac.api import BaseAPI
+from e2x_hub_rbac.auth import require_permission
 
 class MyAPI(BaseAPI):
-    def __init__(self, logger: Optional[Logger] = None):
+    def __init__(self):
         super().__init__(role_permissions=ROLE_PERMISSIONS)
 
-    @require_permission(MyPermission)
-    def get_student_term_profile(self, user, course_id, term_id):
+    @require_permission(Permission)
+    def get_profile(self, user, course_id, term_id):
         return {"profile": "data"}
 
-
 api = MyAPI()
+alice = User(username="alice", groups=["term.math101.2024ws.student"])
 
-alice = User(username="Alice", groups=["course.cs101.course_admin"])
-
-api.get_student_term_profile(alice, "cs101", "AnyTerm") # Succeeds
-api.get_student_term_profile(
-    alice, "math101", "AnyTerm"
-)  # Fails with APIPermissionError
-
+api.get_profile(alice, "math101", "2024ws")  # succeeds
+api.get_profile(alice, "cs101",   "2024ws")  # raises APIPermissionError (403)
 ```
 
----
-
-## 📚 Examples
-
-### Example 1: Basic Permission Check
-
-```python
-from e2x_hub_rbac.auth.user import User
-from e2x_hub_rbac.auth.rbac import (
-    Role,
-    Scope,
-    PermissionProtocol,
-    PermissionChecker,
-    RolePermissions,
-)
-
-
-class ProfilePermission(PermissionProtocol):
-    code = "profile_access"
-    required_scope = Scope.TERM
-
-
-# Define the mapping from roles to permissions
-ROLE_PERMISSIONS: RolePermissions = {
-    Role.STUDENT: frozenset({ProfilePermission}),
-    # Add more roles and permissions here...
-}
-
-# Create a user with a student role
-user = User(username="alice", groups=["term.math101.2024_ws.student"])
-
-# Check permission
-checker = PermissionChecker(user, ROLE_PERMISSIONS)
-has_permission = checker.has_permission(
-    ProfilePermission, course_id="math101", term_id="2024_ws"
-)
-print(f"Has permission: {has_permission}")  # True
-
-has_permission = checker.has_permission(
-    ProfilePermission, course_id="cs101", term_id="2024_ws"
-)
-print(f"Has permission: {has_permission}")  # False
-
-```
-
-### Example 2: Course-Level Permission
-
-```python
-from e2x_hub_rbac.auth.user import User
-from e2x_hub_rbac.auth.rbac import (
-    Role,
-    Scope,
-    PermissionProtocol,
-    PermissionChecker,
-    RolePermissions,
-)
-
-
-class ViewCoursePermission(PermissionProtocol):
-    code = "view_course"
-    required_scope = Scope.COURSE
-
-
-# Define the mapping from roles to permissions
-ROLE_PERMISSIONS: RolePermissions = {
-    Role.COURSE_ADMIN: frozenset({ViewCoursePermission}),
-    # Add more roles and permissions here...
-}
-
-# Create a user with a student role
-user = User(username="alice", groups=["course.math101.course_admin"])
-
-# Check permission
-checker = PermissionChecker(user, ROLE_PERMISSIONS)
-has_permission = checker.has_permission(
-    ViewCoursePermission, course_id="math101"
-)
-print(f"Has permission: {has_permission}")  # True
-
-has_permission = checker.has_permission(
-    ViewCoursePermission, course_id="cs101"
-)
-print(f"Has permission: {has_permission}")  # False
-```
+`APIPermissionError` is RFC 9457-compliant and carries `status_code = 403`.
 
 ---
 
 ## 🛠️ Development
 
-### Prerequisites
-
-- Python 3.8+
-- pip
-
 ### Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/Digiklausur/e2x-hub-rbac.git
 cd e2x-hub-rbac
-
-# Install in development mode
 pip install -e ".[dev]"
-
-# Install pre-commit hooks
 pre-commit install
 ```
 
 ### Running Tests
 
 ```bash
-# Install test dependencies
 pip install -e ".[test]"
-
-# Run tests
 pytest
-```
-
-### Building Documentation
-
-```bash
-# Install documentation dependencies
-pip install -e ".[docs]"
-
-# Build documentation
-cd docs
-make html
 ```
 
 ---
