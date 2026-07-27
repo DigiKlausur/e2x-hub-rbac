@@ -132,9 +132,18 @@ class TestFromGroupName:
             ("hub.course_creator", RoleAssignment.hub(Role.COURSE_CREATOR)),
             ("course.math101.course_owner", RoleAssignment.course(Role.COURSE_OWNER, "math101")),
             ("term.math101.2024ws.student", RoleAssignment.term(Role.STUDENT, "math101", "2024ws")),
-            ("term.math101.2024ws.teaching_assistant", RoleAssignment.term(Role.TEACHING_ASSISTANT, "math101", "2024ws")),
-            ("term.math101.2024ws.observer", RoleAssignment.term(Role.OBSERVER, "math101", "2024ws")),
-            ("term.math101.2024ws.instructor", RoleAssignment.term(Role.INSTRUCTOR, "math101", "2024ws")),
+            (
+                "term.math101.2024ws.teaching_assistant",
+                RoleAssignment.term(Role.TEACHING_ASSISTANT, "math101", "2024ws"),
+            ),
+            (
+                "term.math101.2024ws.observer",
+                RoleAssignment.term(Role.OBSERVER, "math101", "2024ws"),
+            ),
+            (
+                "term.math101.2024ws.instructor",
+                RoleAssignment.term(Role.INSTRUCTOR, "math101", "2024ws"),
+            ),
         ],
     )
     def test_valid(self, group_name, expected):
