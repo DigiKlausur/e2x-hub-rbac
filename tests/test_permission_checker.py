@@ -19,8 +19,8 @@ def hub_admin_checker(hub_admin_user, role_permissions):
 
 
 @pytest.fixture
-def grader_checker(grader_user, role_permissions):
-    return PermissionChecker(grader_user, role_permissions)
+def teaching_assistant_checker(teaching_assistant_user, role_permissions):
+    return PermissionChecker(teaching_assistant_user, role_permissions)
 
 
 @pytest.fixture
@@ -90,9 +90,9 @@ class TestHasPermission:
             is False
         )
 
-    def test_grader_can_grade(self, grader_checker):
+    def test_grader_can_grade(self, teaching_assistant_checker):
         assert (
-            grader_checker.has_permission(
+            teaching_assistant_checker.has_permission(
                 Permission.TERM_GRADE, course_id="math101", term_id="2024ws"
             )
             is True
@@ -170,7 +170,7 @@ class TestGetRolesInCourseAndTerm:
         roles = multi_role_checker.get_roles_in_course_and_term("math101", "2024ws")
         assert Role.STUDENT in roles
         roles = multi_role_checker.get_roles_in_course_and_term("phys201", "2024ws")
-        assert Role.GRADER in roles
+        assert Role.TEACHING_ASSISTANT in roles
 
 
 # ---------------------------------------------------------------------------

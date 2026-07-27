@@ -49,7 +49,7 @@ ROLE_PERMISSIONS: RolePermissions = {
         ]
     ),
     Role.COURSE_CREATOR: frozenset([Permission.HUB_MANAGE]),
-    Role.COURSE_ADMIN: frozenset(
+    Role.COURSE_OWNER: frozenset(
         [
             Permission.COURSE_READ,
             Permission.COURSE_MANAGE,
@@ -57,9 +57,10 @@ ROLE_PERMISSIONS: RolePermissions = {
             Permission.TERM_GRADE,
         ]
     ),
-    Role.TERM_ADMIN: frozenset([Permission.TERM_READ, Permission.TERM_GRADE]),
-    Role.GRADER: frozenset([Permission.TERM_READ, Permission.TERM_GRADE]),
+    Role.INSTRUCTOR: frozenset([Permission.TERM_READ, Permission.TERM_GRADE]),
+    Role.TEACHING_ASSISTANT: frozenset([Permission.TERM_READ, Permission.TERM_GRADE]),
     Role.STUDENT: frozenset([Permission.TERM_READ]),
+    Role.OBSERVER: frozenset([Permission.TERM_READ]),
 }
 
 
@@ -89,8 +90,8 @@ def student_user() -> User:
 
 
 @pytest.fixture
-def grader_user() -> User:
-    return User(username="bob", groups=["term.math101.2024ws.grader"])
+def teaching_assistant_user() -> User:
+    return User(username="bob", groups=["term.math101.2024ws.teaching_assistant"])
 
 
 @pytest.fixture
@@ -100,8 +101,8 @@ def multi_role_user() -> User:
         username="multi",
         groups=[
             "term.math101.2024ws.student",
-            "term.phys201.2024ws.grader",
-            "course.chem301.course_admin",
+            "term.phys201.2024ws.teaching_assistant",
+            "course.chem301.course_owner",
         ],
     )
 
