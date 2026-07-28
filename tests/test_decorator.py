@@ -56,8 +56,8 @@ class TestRequirePermission:
         with pytest.raises(APIPermissionError):
             api.submit_grade(student_user, course_id="math101", term_id="2024ws")
 
-    def test_grader_can_submit_grade(self, api, grader_user):
-        result = api.submit_grade(grader_user, course_id="math101", term_id="2024ws")
+    def test_teaching_assistant_can_submit_grade(self, api, teaching_assistant_user):
+        result = api.submit_grade(teaching_assistant_user, course_id="math101", term_id="2024ws")
         assert result == "graded"
 
     def test_hub_admin_can_call_all_methods(self, api, hub_admin_user):
@@ -84,14 +84,14 @@ class TestRequirePermission:
         assert FakeAPI.get_term_data.__name__ == "get_term_data"
 
     def test_course_scoped_method_no_term_id(self, api):
-        course_admin = User(username="ca", groups=["course.math101.course_admin"])
-        result = api.manage_course(course_admin, course_id="math101")
+        course_owner = User(username="ca", groups=["course.math101.course_owner"])
+        result = api.manage_course(course_owner, course_id="math101")
         assert result == "managing math101"
 
     def test_course_scoped_method_wrong_course_denied(self, api):
-        course_admin = User(username="ca", groups=["course.math101.course_admin"])
+        course_owner = User(username="ca", groups=["course.math101.course_owner"])
         with pytest.raises(APIPermissionError):
-            api.manage_course(course_admin, course_id="phys201")
+            api.manage_course(course_owner, course_id="phys201")
 
     def test_wrong_term_denied(self, api, student_user):
         """Student in math101/2024ws cannot access math101/2025ss."""

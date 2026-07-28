@@ -17,9 +17,10 @@ class Role(Enum):
 
     HUB_ADMIN = ("hub_admin", Scope.HUB)
     COURSE_CREATOR = ("course_creator", Scope.HUB)
-    COURSE_ADMIN = ("course_admin", Scope.COURSE)
-    TERM_ADMIN = ("term_admin", Scope.TERM)
-    GRADER = ("grader", Scope.TERM)
+    COURSE_OWNER = ("course_owner", Scope.COURSE)
+    INSTRUCTOR = ("instructor", Scope.TERM)
+    TEACHING_ASSISTANT = ("teaching_assistant", Scope.TERM)
+    OBSERVER = ("observer", Scope.TERM)
     STUDENT = ("student", Scope.TERM)
 
     def __init__(self, role_name: str, scope: Scope):

@@ -61,3 +61,14 @@ class BaseAPI:
         """
         checker = self.permission_checker(user)
         return checker.has_permission(permission, course_id=course_id, term_id=term_id)
+
+    def get_registered_permissions(self) -> set[PermissionProtocol]:
+        """Get the set of all registered permissions in the system.
+
+        Returns:
+            A set of all registered PermissionProtocol instances
+        """
+        permissions = set()
+        for role, perms in self._role_permissions.items():
+            permissions.update(perms)
+        return permissions

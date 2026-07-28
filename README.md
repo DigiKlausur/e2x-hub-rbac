@@ -28,10 +28,58 @@ Roles are fixed and ship with this package.
 |------|-------|-------------------|
 | `HUB_ADMIN` | Hub | `hub.hub_admin` |
 | `COURSE_CREATOR` | Hub | `hub.course_creator` |
-| `COURSE_ADMIN` | Course | `course.{course_id}.course_admin` |
-| `TERM_ADMIN` | Term | `term.{course_id}.{term_id}.term_admin` |
-| `GRADER` | Term | `term.{course_id}.{term_id}.grader` |
+| `COURSE_OWNER` | Course | `course.{course_id}.course_owner` |
+| `INSTRUCTOR` | Term | `term.{course_id}.{term_id}.instructor` |
+| `TEACHING_ASSISTANT` | Term | `term.{course_id}.{term_id}.teaching_assistant` |
+| `OBSERVER` | Term | `term.{course_id}.{term_id}.observer` |
 | `STUDENT` | Term | `term.{course_id}.{term_id}.student` |
+
+---
+
+## Group Names
+
+JupyterHub group memberships are automatically parsed into role assignments based on a structured naming convention. Each group name encodes the role scope and identifiers.
+
+### Format
+
+Group names follow these patterns:
+
+- **Hub-level roles**: `hub.<role_name>`
+- **Course-level roles**: `course.<course_id>.<role_name>`
+- **Term-level roles**: `term.<course_id>.<term_id>.<role_name>`
+
+### Examples
+
+```
+hub.hub_admin                                    # Hub admin (global access)
+hub.course_creator                               # Can create courses (global)
+course.math101.course_owner                      # Owner of course math101
+term.math101.2024ws.instructor                   # Instructor for math101 in 2024ws
+term.math101.2024ws.teaching_assistant           # TA for math101 in 2024ws
+term.cs101.2024ss.student                        # Student in cs101 for 2024ss
+term.physics201.2025ws.observer                  # Observer in physics201 for 2025ws
+```
+
+### Parsing Rules
+
+- Group names are case-sensitive and use dot (`.`) as the separator.
+- Only group names matching the expected formats are parsed; others are silently ignored.
+- The role name must exactly match one of the predefined roles at the correct scope.
+- Course IDs and term IDs can contain any characters except dots.
+
+### Invalid Examples
+
+These group names will be ignored during parsing:
+
+```
+admin                          # Missing scope prefix
+hub.invalid_role               # Unknown role name
+course.math101                 # Missing role name
+term.math101.instructor        # Missing term_id
+hub.math101.student            # Wrong scope for student role
+```
+
+---
 
 ## Permission Resolution
 
@@ -73,12 +121,13 @@ class Permission(PermissionProtocol):
     required_scope = Scope.TERM
 
 ROLE_PERMISSIONS: RolePermissions = {
-    Role.HUB_ADMIN:      frozenset({Permission}),
-    Role.COURSE_CREATOR: frozenset(),
-    Role.COURSE_ADMIN:   frozenset({Permission}),
-    Role.TERM_ADMIN:     frozenset({Permission}),
-    Role.GRADER:         frozenset({Permission}),
-    Role.STUDENT:        frozenset({Permission}),
+    Role.HUB_ADMIN:           frozenset({Permission}),
+    Role.COURSE_CREATOR:      frozenset(),
+    Role.COURSE_OWNER:        frozenset({Permission}),
+    Role.INSTRUCTOR:          frozenset({Permission}),
+    Role.TEACHING_ASSISTANT:  frozenset({Permission}),
+    Role.OBSERVER:            frozenset({Permission}),
+    Role.STUDENT:             frozenset({Permission}),
 }
 ```
 

@@ -64,3 +64,10 @@ class TestBaseAPI:
         logger = logging.getLogger("test")
         api = BaseAPI(role_permissions=role_permissions, logger=logger)
         assert api is not None
+
+    def test_get_registered_permissions(self, api):
+        permissions = api.get_registered_permissions()
+        assert isinstance(permissions, set)
+        assert all(isinstance(p, Permission) for p in permissions)
+        all_permissions = Permission.__members__.values()
+        assert permissions == set(all_permissions)

@@ -24,14 +24,26 @@ class TestRole:
         assert Role.HUB_ADMIN.role_name == "hub_admin"
         assert Role.HUB_ADMIN.scope is Scope.HUB
 
-        assert Role.COURSE_ADMIN.role_name == "course_admin"
-        assert Role.COURSE_ADMIN.scope is Scope.COURSE
+        assert Role.COURSE_CREATOR.role_name == "course_creator"
+        assert Role.COURSE_CREATOR.scope is Scope.HUB
+
+        assert Role.COURSE_OWNER.role_name == "course_owner"
+        assert Role.COURSE_OWNER.scope is Scope.COURSE
+
+        assert Role.INSTRUCTOR.role_name == "instructor"
+        assert Role.INSTRUCTOR.scope is Scope.TERM
 
         assert Role.STUDENT.role_name == "student"
         assert Role.STUDENT.scope is Scope.TERM
 
+        assert Role.TEACHING_ASSISTANT.role_name == "teaching_assistant"
+        assert Role.TEACHING_ASSISTANT.scope is Scope.TERM
+
+        assert Role.OBSERVER.role_name == "observer"
+        assert Role.OBSERVER.scope is Scope.TERM
+
     def test_str(self):
-        assert str(Role.GRADER) == "grader"
+        assert str(Role.TEACHING_ASSISTANT) == "teaching_assistant"
 
 
 class TestLookupRole:
@@ -62,10 +74,10 @@ class TestRoleAssignmentConstructors:
 
     def test_hub_wrong_scope_raises(self):
         with pytest.raises(ValueError):
-            RoleAssignment.hub(Role.COURSE_ADMIN)
+            RoleAssignment.hub(Role.COURSE_OWNER)
 
     def test_course(self):
-        ra = RoleAssignment.course(Role.COURSE_ADMIN, "math101")
+        ra = RoleAssignment.course(Role.COURSE_OWNER, "math101")
         assert ra.course_id == "math101"
         assert ra.term_id is None
         assert ra.scope is Scope.COURSE
@@ -82,7 +94,7 @@ class TestRoleAssignmentConstructors:
 
     def test_term_wrong_scope_raises(self):
         with pytest.raises(ValueError):
-            RoleAssignment.term(Role.COURSE_ADMIN, "math101", "2024ws")
+            RoleAssignment.term(Role.COURSE_OWNER, "math101", "2024ws")
 
 
 # ---------------------------------------------------------------------------
@@ -96,8 +108,8 @@ class TestGroupName:
 
     def test_course_group_name(self):
         assert (
-            RoleAssignment.course(Role.COURSE_ADMIN, "math101").group_name
-            == "course.math101.course_admin"
+            RoleAssignment.course(Role.COURSE_OWNER, "math101").group_name
+            == "course.math101.course_owner"
         )
 
     def test_term_group_name(self):
@@ -118,9 +130,20 @@ class TestFromGroupName:
         [
             ("hub.hub_admin", RoleAssignment.hub(Role.HUB_ADMIN)),
             ("hub.course_creator", RoleAssignment.hub(Role.COURSE_CREATOR)),
-            ("course.math101.course_admin", RoleAssignment.course(Role.COURSE_ADMIN, "math101")),
+            ("course.math101.course_owner", RoleAssignment.course(Role.COURSE_OWNER, "math101")),
             ("term.math101.2024ws.student", RoleAssignment.term(Role.STUDENT, "math101", "2024ws")),
-            ("term.math101.2024ws.grader", RoleAssignment.term(Role.GRADER, "math101", "2024ws")),
+            (
+                "term.math101.2024ws.teaching_assistant",
+                RoleAssignment.term(Role.TEACHING_ASSISTANT, "math101", "2024ws"),
+            ),
+            (
+                "term.math101.2024ws.observer",
+                RoleAssignment.term(Role.OBSERVER, "math101", "2024ws"),
+            ),
+            (
+                "term.math101.2024ws.instructor",
+                RoleAssignment.term(Role.INSTRUCTOR, "math101", "2024ws"),
+            ),
         ],
     )
     def test_valid(self, group_name, expected):
@@ -169,7 +192,7 @@ class TestAssignmentAppliesTo:
         )
 
     def test_course_role_applies_to_its_course(self):
-        ra = RoleAssignment.course(Role.COURSE_ADMIN, "math101")
+        ra = RoleAssignment.course(Role.COURSE_OWNER, "math101")
         assert _assignment_applies_to(ra, ResourceContext(course_id="math101")) is True
         assert (
             _assignment_applies_to(ra, ResourceContext(course_id="math101", term_id="2024ws"))
@@ -177,11 +200,11 @@ class TestAssignmentAppliesTo:
         )
 
     def test_course_role_does_not_apply_to_other_course(self):
-        ra = RoleAssignment.course(Role.COURSE_ADMIN, "math101")
+        ra = RoleAssignment.course(Role.COURSE_OWNER, "math101")
         assert _assignment_applies_to(ra, ResourceContext(course_id="phys201")) is False
 
     def test_course_role_applies_to_hub_context(self):
-        ra = RoleAssignment.course(Role.COURSE_ADMIN, "math101")
+        ra = RoleAssignment.course(Role.COURSE_OWNER, "math101")
         assert _assignment_applies_to(ra, ResourceContext()) is True
 
     def test_term_role_applies_to_exact_term(self):
@@ -237,7 +260,7 @@ class TestCheckPermission:
         assert check_permission([], Permission.TERM_READ, ROLE_PERMISSIONS, ctx) is False
 
     def test_missing_course_context_raises_for_course_permission(self):
-        assignments = [RoleAssignment.course(Role.COURSE_ADMIN, "math101")]
+        assignments = [RoleAssignment.course(Role.COURSE_OWNER, "math101")]
         with pytest.raises(ValueError, match="course_id"):
             check_permission(
                 assignments, Permission.COURSE_READ, ROLE_PERMISSIONS, ResourceContext()
