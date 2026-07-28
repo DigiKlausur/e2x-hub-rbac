@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
   "pydantic>=2.0",
+  "httpx>=0.24",
 ]
 
 [project.urls]
@@ -43,6 +44,7 @@ dev = [
 test = [
   "pytest",
   "pytest-cov",
+  "pytest-asyncio",
 ]
 docs = [
   "sphinx",
