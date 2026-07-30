@@ -10,13 +10,17 @@ Role-Based Access Control (RBAC) for JupyterHub within the e2x ecosystem, suppor
 
 ## Overview
 
-`e2x-hub-rbac` maps JupyterHub group memberships to predefined roles, and lets consuming packages attach permissions to those roles.
+`e2x-hub-rbac` provides role-based access control for JupyterHub with two main capabilities:
+
+1. **Permission Checking**: Maps JupyterHub group memberships to predefined roles and evaluates permissions.
+2. **Membership Management**: Provides an API to add, remove, and list users in roles with automatic permission checking.
 
 The core idea:
 
 1. A user's JupyterHub groups are parsed into **role assignments** at a specific scope (Hub, Course, or Term).
 2. Consuming packages define **permissions** and a **role → permissions** mapping.
 3. The `PermissionChecker` (or the `require_permission` decorator) evaluates whether a user's roles grant a requested permission within the given scope.
+4. The `MembershipAPI` manages user-role assignments via a backend (e.g., JupyterHub's group API).
 
 ---
 
@@ -107,6 +111,15 @@ pip install -e .
 
 ---
 
+## Architecture
+
+This package provides two main components:
+
+1. **Permission System**: Check if users have specific permissions based on their role assignments
+2. **Membership API**: Manage user memberships in courses and terms (add/remove users from roles)
+
+---
+
 ## Usage
 
 ### 1. Define your permissions
@@ -172,6 +185,156 @@ api.get_profile(alice, "cs101",   "2024ws")  # raises APIPermissionError (403)
 
 ---
 
+## Managing Memberships
+
+The `MembershipAPI` provides methods to add, remove, and list users in various roles. It requires a backend implementation of the `GroupBackend` protocol.
+
+### Backend Setup
+
+The package includes a `HubAPI` backend for JupyterHub:
+
+```python
+from e2x_hub_rbac.backend import HubAPI
+from e2x_hub_rbac.api import MembershipAPI
+
+# Initialize the JupyterHub backend
+hub_backend = HubAPI(
+    api_token="your-jupyterhub-api-token",
+    api_url="https://your-hub.example.com/hub/api"
+)
+
+# Create the membership API
+membership_api = MembershipAPI(
+    group_backend=hub_backend,
+    add_users_to_hub=True  # Automatically create users if they don't exist
+)
+```
+
+### Hub-Level Operations
+
+Manage hub administrators and course creators:
+
+```python
+from e2x_hub_rbac.auth import User
+
+# Admin user who can manage memberships
+admin = User(username="admin", admin=True, groups=["hub.hub_admin"])
+
+# Add/remove hub admins
+await membership_api.add_hub_admins(admin, ["user1", "user2"])
+await membership_api.remove_hub_admins(admin, ["user1"])
+admins = await membership_api.list_hub_admins(admin)
+
+# Add/remove course creators
+await membership_api.add_course_creators(admin, ["instructor1"])
+await membership_api.remove_course_creators(admin, ["instructor1"])
+creators = await membership_api.list_course_creators(admin)
+```
+
+### Course-Level Operations
+
+Manage course owners:
+
+```python
+# Add/remove course owners
+await membership_api.add_course_owners(admin, "math101", ["prof_smith"])
+await membership_api.remove_course_owners(admin, "math101", ["prof_smith"])
+owners = await membership_api.list_course_owners(admin, "math101")
+```
+
+### Term-Level Operations
+
+Manage instructors, teaching assistants, observers, and students:
+
+```python
+course_id = "math101"
+term_id = "2024ws"
+
+# Instructors
+await membership_api.add_instructors(admin, course_id, term_id, ["instructor1"])
+await membership_api.remove_instructors(admin, course_id, term_id, ["instructor1"])
+instructors = await membership_api.list_instructors(admin, course_id, term_id)
+
+# Teaching Assistants
+await membership_api.add_teaching_assistants(admin, course_id, term_id, ["ta1", "ta2"])
+await membership_api.remove_teaching_assistants(admin, course_id, term_id, ["ta1"])
+tas = await membership_api.list_teaching_assistants(admin, course_id, term_id)
+
+# Observers
+await membership_api.add_observers(admin, course_id, term_id, ["observer1"])
+await membership_api.remove_observers(admin, course_id, term_id, ["observer1"])
+observers = await membership_api.list_observers(admin, course_id, term_id)
+
+# Students
+await membership_api.add_students(admin, course_id, term_id, ["alice", "bob"])
+await membership_api.remove_students(admin, course_id, term_id, ["alice"])
+students = await membership_api.list_students(admin, course_id, term_id)
+```
+
+### Permission-Based Access Control
+
+All membership operations are protected by permissions. Different roles can perform different operations:
+
+| Operation | Required Permission | Who Can Do It |
+|-----------|-------------------|---------------|
+| Manage hub admins | Hub-scoped | Hub admins only |
+| Manage course creators | Hub-scoped | Hub admins only |
+| Manage course owners | Course-scoped | Hub admins, course owners |
+| Manage instructors | Term-scoped | Hub admins, course owners, instructors |
+| Manage TAs | Term-scoped | Hub admins, course owners, instructors |
+| Manage observers | Term-scoped | Hub admins, course owners, instructors |
+| Manage students | Term-scoped | Hub admins, course owners, instructors, TAs |
+| List members | Term-scoped | Hub admins, course owners, instructors, TAs, observers |
+
+Example of permission checking:
+
+```python
+# Course owner can manage their course
+course_owner = User(username="prof", groups=["course.math101.course_owner"])
+await membership_api.add_students(course_owner, "math101", "2024ws", ["student1"])  # ✓ Succeeds
+
+# But cannot manage a different course
+await membership_api.add_students(course_owner, "cs101", "2024ws", ["student1"])  # ✗ Raises APIPermissionError
+
+# Teaching assistant can add students
+ta = User(username="ta", groups=["term.math101.2024ws.teaching_assistant"])
+await membership_api.add_students(ta, "math101", "2024ws", ["student2"])  # ✓ Succeeds
+
+# But cannot remove instructors
+await membership_api.remove_instructors(ta, "math101", "2024ws", ["instructor1"])  # ✗ Raises APIPermissionError
+```
+
+### Custom Backend Implementation
+
+You can implement your own backend by implementing the `GroupBackend` protocol:
+
+```python
+from e2x_hub_rbac.backend.protocol import GroupBackend
+
+class CustomBackend(GroupBackend):
+    async def ensure_group_exists(self, group_name: str, create_if_missing: bool) -> None:
+        # Your implementation
+        ...
+
+    async def ensure_users_exist(self, usernames: list[str], create_if_missing: bool) -> None:
+        # Your implementation
+        ...
+
+    async def add_users_to_group(self, group_name: str, usernames: list[str]) -> None:
+        # Your implementation
+        ...
+
+    async def remove_users_from_group(self, group_name: str, usernames: list[str]) -> None:
+        # Your implementation
+        ...
+
+    async def get_group_members(self, group_name: str) -> list[str]:
+        # Your implementation
+        ...
+```
+
+---
+
 ## 🛠️ Development
 
 ### Setup
@@ -189,6 +352,12 @@ pre-commit install
 pip install -e ".[test]"
 pytest
 ```
+
+The test suite includes:
+- Permission checker tests
+- Decorator tests
+- MembershipAPI tests (requires `pytest-asyncio`)
+- RBAC tests
 
 ---
 

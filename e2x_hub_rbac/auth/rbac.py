@@ -50,6 +50,18 @@ class PermissionProtocol(Protocol):
 RolePermissions = dict[Role, frozenset[PermissionProtocol]]
 
 
+class PermissionEnum(Enum):
+    code: str
+    required_scope: Scope
+
+    def __init__(self, code: str, required_scope: Scope):
+        self.code = code
+        self.required_scope = required_scope
+
+    def __str__(self) -> str:
+        return self.code
+
+
 @dataclass(frozen=True)
 class ResourceContext:
     """Identifies the resource being acted upon.
