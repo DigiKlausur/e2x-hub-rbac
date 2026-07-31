@@ -3,8 +3,7 @@ import inspect
 from typing import Any, Callable
 
 from ..errors import APIPermissionError
-from .rbac import PermissionProtocol
-from .user import User
+from .rbac import PermissionProtocol, UserLike
 
 
 def require_permission(permission: PermissionProtocol) -> Callable[..., Any]:
@@ -34,7 +33,7 @@ def require_permission(permission: PermissionProtocol) -> Callable[..., Any]:
             arguments = bound.arguments
 
             self = arguments["self"]
-            user: User = arguments["user"]
+            user: UserLike = arguments["user"]
             course_id: str | None = arguments.get("course_id")
             term_id: str | None = arguments.get("term_id")
 
