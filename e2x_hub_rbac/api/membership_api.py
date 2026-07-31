@@ -1,3 +1,5 @@
+from logging import Logger
+
 from ..auth.decorator import require_permission
 from ..auth.rbac import Role, RoleAssignment, UserLike
 from ..backend.errors import GroupNotFoundError
@@ -9,8 +11,13 @@ from .base_api import BaseAPI
 class MembershipAPI(BaseAPI):
     """API for managing user memberships in courses and terms."""
 
-    def __init__(self, group_backend: GroupBackend, add_users_to_hub: bool = False):
-        super().__init__(role_permissions=MEMBERSHIP_ROLE_PERMISSIONS)
+    def __init__(
+        self,
+        group_backend: GroupBackend,
+        add_users_to_hub: bool = False,
+        logger: Logger | None = None,
+    ):
+        super().__init__(role_permissions=MEMBERSHIP_ROLE_PERMISSIONS, logger=logger)
         self._group_backend = group_backend
         self.add_users_to_hub = add_users_to_hub
 
