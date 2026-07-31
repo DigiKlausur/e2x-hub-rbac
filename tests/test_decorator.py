@@ -3,11 +3,10 @@
 import pytest
 
 from e2x_hub_rbac.auth.decorator import require_permission
-from e2x_hub_rbac.auth.rbac import PermissionChecker
-from e2x_hub_rbac.auth.user import User
+from e2x_hub_rbac.auth.rbac import PermissionChecker, UserLike
 from e2x_hub_rbac.errors import APIPermissionError
 
-from .conftest import ROLE_PERMISSIONS, Permission
+from .models import DummyPermission
 
 # ---------------------------------------------------------------------------
 # Minimal API class that uses the decorator
@@ -15,26 +14,26 @@ from .conftest import ROLE_PERMISSIONS, Permission
 
 
 class FakeAPI:
-    def __init__(self, role_permissions=ROLE_PERMISSIONS):
+    def __init__(self, role_permissions):
         self._role_permissions = role_permissions
 
-    def permission_checker(self, user: User) -> PermissionChecker:
+    def permission_checker(self, user: UserLike) -> PermissionChecker:
         return PermissionChecker(user, self._role_permissions)
 
-    @require_permission(Permission.TERM_READ)
-    def get_term_data(self, user: User, course_id: str, term_id: str):
+    @require_permission(DummyPermission.TERM_READ)
+    def get_term_data(self, user: UserLike, course_id: str, term_id: str):
         return f"{course_id}/{term_id}"
 
-    @require_permission(Permission.TERM_GRADE)
-    def submit_grade(self, user: User, course_id: str, term_id: str):
+    @require_permission(DummyPermission.TERM_GRADE)
+    def submit_grade(self, user: UserLike, course_id: str, term_id: str):
         return "graded"
 
-    @require_permission(Permission.COURSE_MANAGE)
-    def manage_course(self, user: User, course_id: str):
+    @require_permission(DummyPermission.COURSE_MANAGE)
+    def manage_course(self, user: UserLike, course_id: str):
         return f"managing {course_id}"
 
-    @require_permission(Permission.HUB_MANAGE)
-    def hub_action(self, user: User):
+    @require_permission(DummyPermission.HUB_MANAGE)
+    def hub_action(self, user: UserLike):
         return "hub action done"
 
 
@@ -45,19 +44,23 @@ class FakeAPI:
 
 class TestRequirePermission:
     @pytest.fixture
-    def api(self):
-        return FakeAPI()
+    def api(self, role_permissions):
+        return FakeAPI(role_permissions)
 
-    def test_permitted_call_succeeds(self, api, student_user):
-        result = api.get_term_data(student_user, course_id="math101", term_id="2024ws")
+    def test_permitted_call_succeeds(self, api, math101_2024ws_student_user):
+        result = api.get_term_data(
+            math101_2024ws_student_user, course_id="math101", term_id="2024ws"
+        )
         assert result == "math101/2024ws"
 
-    def test_denied_call_raises_api_permission_error(self, api, student_user):
+    def test_denied_call_raises_api_permission_error(self, api, math101_2024ws_student_user):
         with pytest.raises(APIPermissionError):
-            api.submit_grade(student_user, course_id="math101", term_id="2024ws")
+            api.submit_grade(math101_2024ws_student_user, course_id="math101", term_id="2024ws")
 
-    def test_teaching_assistant_can_submit_grade(self, api, teaching_assistant_user):
-        result = api.submit_grade(teaching_assistant_user, course_id="math101", term_id="2024ws")
+    def test_teaching_assistant_can_submit_grade(self, api, math101_2024ws_teaching_assistant_user):
+        result = api.submit_grade(
+            math101_2024ws_teaching_assistant_user, course_id="math101", term_id="2024ws"
+        )
         assert result == "graded"
 
     def test_hub_admin_can_call_all_methods(self, api, hub_admin_user):
@@ -70,30 +73,28 @@ class TestRequirePermission:
         with pytest.raises(APIPermissionError):
             api.get_term_data(no_role_user, course_id="math101", term_id="2024ws")
 
-    def test_error_contains_username(self, api, student_user):
+    def test_error_contains_username(self, api, math101_2024ws_student_user):
         with pytest.raises(APIPermissionError) as exc_info:
-            api.submit_grade(student_user, course_id="math101", term_id="2024ws")
-        assert student_user.username in str(exc_info.value)
+            api.submit_grade(math101_2024ws_student_user, course_id="math101", term_id="2024ws")
+        assert math101_2024ws_student_user.username in str(exc_info.value)
 
-    def test_error_contains_permission_code(self, api, student_user):
+    def test_error_contains_permission_code(self, api, math101_2024ws_student_user):
         with pytest.raises(APIPermissionError) as exc_info:
-            api.submit_grade(student_user, course_id="math101", term_id="2024ws")
-        assert Permission.TERM_GRADE.code in str(exc_info.value)
+            api.submit_grade(math101_2024ws_student_user, course_id="math101", term_id="2024ws")
+        assert DummyPermission.TERM_GRADE.code in str(exc_info.value)
 
     def test_wraps_preserves_function_metadata(self):
         assert FakeAPI.get_term_data.__name__ == "get_term_data"
 
-    def test_course_scoped_method_no_term_id(self, api):
-        course_owner = User(username="ca", groups=["course.math101.course_owner"])
-        result = api.manage_course(course_owner, course_id="math101")
+    def test_course_scoped_method_no_term_id(self, api, math101_course_owner_user):
+        result = api.manage_course(math101_course_owner_user, course_id="math101")
         assert result == "managing math101"
 
-    def test_course_scoped_method_wrong_course_denied(self, api):
-        course_owner = User(username="ca", groups=["course.math101.course_owner"])
+    def test_course_scoped_method_wrong_course_denied(self, api, math101_course_owner_user):
         with pytest.raises(APIPermissionError):
-            api.manage_course(course_owner, course_id="phys201")
+            api.manage_course(math101_course_owner_user, course_id="phys201")
 
-    def test_wrong_term_denied(self, api, student_user):
+    def test_wrong_term_denied(self, api, math101_2024ws_student_user):
         """Student in math101/2024ws cannot access math101/2025ss."""
         with pytest.raises(APIPermissionError):
-            api.get_term_data(student_user, course_id="math101", term_id="2025ss")
+            api.get_term_data(math101_2024ws_student_user, course_id="math101", term_id="2025ss")

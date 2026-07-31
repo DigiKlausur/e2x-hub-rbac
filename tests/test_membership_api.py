@@ -5,9 +5,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from e2x_hub_rbac.api.membership_api import MembershipAPI
-from e2x_hub_rbac.auth.rbac import User
 from e2x_hub_rbac.backend.errors import GroupNotFoundError
 from e2x_hub_rbac.errors import APIPermissionError
+
+from .conftest import UserStub
 
 
 @pytest.fixture
@@ -58,9 +59,11 @@ class TestMembershipAPIHubAdmins:
         mock_backend.ensure_users_exist.assert_called_once_with(usernames, create_if_missing=True)
 
     @pytest.mark.asyncio
-    async def test_add_hub_admins_permission_denied(self, membership_api, student_user):
+    async def test_add_hub_admins_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
-            await membership_api.add_hub_admins(student_user, ["user1"])
+            await membership_api.add_hub_admins(math101_2024ws_student_user, ["user1"])
 
     @pytest.mark.asyncio
     async def test_remove_hub_admins_as_hub_admin(
@@ -96,9 +99,11 @@ class TestMembershipAPIHubAdmins:
         mock_backend.remove_users_from_group.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_remove_hub_admins_permission_denied(self, membership_api, student_user):
+    async def test_remove_hub_admins_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
-            await membership_api.remove_hub_admins(student_user, ["user1"])
+            await membership_api.remove_hub_admins(math101_2024ws_student_user, ["user1"])
 
     @pytest.mark.asyncio
     async def test_list_hub_admins_as_hub_admin(self, membership_api, hub_admin_user, mock_backend):
@@ -121,9 +126,11 @@ class TestMembershipAPIHubAdmins:
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_list_hub_admins_permission_denied(self, membership_api, student_user):
+    async def test_list_hub_admins_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
-            await membership_api.list_hub_admins(student_user)
+            await membership_api.list_hub_admins(math101_2024ws_student_user)
 
 
 class TestMembershipAPICourseCreators:
@@ -142,9 +149,11 @@ class TestMembershipAPICourseCreators:
         mock_backend.add_users_to_group.assert_called_once_with("hub.course_creator", usernames)
 
     @pytest.mark.asyncio
-    async def test_add_course_creators_permission_denied(self, membership_api, student_user):
+    async def test_add_course_creators_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
-            await membership_api.add_course_creators(student_user, ["creator1"])
+            await membership_api.add_course_creators(math101_2024ws_student_user, ["creator1"])
 
     @pytest.mark.asyncio
     async def test_remove_course_creators_as_hub_admin(
@@ -189,7 +198,7 @@ class TestMembershipAPICourseOwners:
     @pytest.mark.asyncio
     async def test_add_course_owners_as_course_owner(self, membership_api, mock_backend):
         # Create a user who is already a course owner for this course
-        course_owner = User(username="owner", groups=["course.math101.course_owner"])
+        course_owner = UserStub(username="owner", groups=["course.math101.course_owner"])
         course_id = "math101"
         usernames = ["new_owner"]
 
@@ -198,9 +207,13 @@ class TestMembershipAPICourseOwners:
         mock_backend.add_users_to_group.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_add_course_owners_permission_denied(self, membership_api, student_user):
+    async def test_add_course_owners_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
-            await membership_api.add_course_owners(student_user, "math101", ["owner1"])
+            await membership_api.add_course_owners(
+                math101_2024ws_student_user, "math101", ["owner1"]
+            )
 
     @pytest.mark.asyncio
     async def test_remove_course_owners(self, membership_api, hub_admin_user, mock_backend):
@@ -230,7 +243,7 @@ class TestMembershipAPIInstructors:
 
     @pytest.mark.asyncio
     async def test_add_instructors_as_course_owner(self, membership_api, mock_backend):
-        course_owner = User(username="owner", groups=["course.math101.course_owner"])
+        course_owner = UserStub(username="owner", groups=["course.math101.course_owner"])
         course_id = "math101"
         term_id = "2024ws"
         usernames = ["instructor1"]
@@ -245,16 +258,20 @@ class TestMembershipAPIInstructors:
 
     @pytest.mark.asyncio
     async def test_add_instructors_as_instructor(self, membership_api, mock_backend):
-        instructor = User(username="inst", groups=["term.math101.2024ws.instructor"])
+        instructor = UserStub(username="inst", groups=["term.math101.2024ws.instructor"])
 
         await membership_api.add_instructors(instructor, "math101", "2024ws", ["new_instructor"])
 
         mock_backend.add_users_to_group.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_add_instructors_permission_denied(self, membership_api, student_user):
+    async def test_add_instructors_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
-            await membership_api.add_instructors(student_user, "math101", "2024ws", ["instructor1"])
+            await membership_api.add_instructors(
+                math101_2024ws_student_user, "math101", "2024ws", ["instructor1"]
+            )
 
     @pytest.mark.asyncio
     async def test_remove_instructors(self, membership_api, hub_admin_user, mock_backend):
@@ -294,7 +311,7 @@ class TestMembershipAPITeachingAssistants:
 
     @pytest.mark.asyncio
     async def test_add_teaching_assistants_as_instructor(self, membership_api, mock_backend):
-        instructor = User(username="inst", groups=["term.math101.2024ws.instructor"])
+        instructor = UserStub(username="inst", groups=["term.math101.2024ws.instructor"])
 
         await membership_api.add_teaching_assistants(instructor, "math101", "2024ws", ["ta1"])
 
@@ -338,16 +355,20 @@ class TestMembershipAPIObservers:
 
     @pytest.mark.asyncio
     async def test_add_observers_as_instructor(self, membership_api, mock_backend):
-        instructor = User(username="inst", groups=["term.math101.2024ws.instructor"])
+        instructor = UserStub(username="inst", groups=["term.math101.2024ws.instructor"])
 
         await membership_api.add_observers(instructor, "math101", "2024ws", ["observer1"])
 
         mock_backend.add_users_to_group.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_add_observers_permission_denied(self, membership_api, student_user):
+    async def test_add_observers_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
-            await membership_api.add_observers(student_user, "math101", "2024ws", ["observer1"])
+            await membership_api.add_observers(
+                math101_2024ws_student_user, "math101", "2024ws", ["observer1"]
+            )
 
     @pytest.mark.asyncio
     async def test_remove_observers(self, membership_api, hub_admin_user, mock_backend):
@@ -372,7 +393,7 @@ class TestMembershipAPIStudents:
 
     @pytest.mark.asyncio
     async def test_add_students_as_instructor(self, membership_api, mock_backend):
-        instructor = User(username="inst", groups=["term.math101.2024ws.instructor"])
+        instructor = UserStub(username="inst", groups=["term.math101.2024ws.instructor"])
         usernames = ["student1", "student2"]
 
         await membership_api.add_students(instructor, "math101", "2024ws", usernames)
@@ -385,19 +406,21 @@ class TestMembershipAPIStudents:
 
     @pytest.mark.asyncio
     async def test_add_students_as_teaching_assistant(
-        self, membership_api, teaching_assistant_user, mock_backend
+        self, membership_api, math101_2024ws_teaching_assistant_user, mock_backend
     ):
         await membership_api.add_students(
-            teaching_assistant_user, "math101", "2024ws", ["student1"]
+            math101_2024ws_teaching_assistant_user, "math101", "2024ws", ["student1"]
         )
 
         mock_backend.add_users_to_group.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_add_students_permission_denied(self, membership_api, student_user):
+    async def test_add_students_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         with pytest.raises(APIPermissionError):
             await membership_api.add_students(
-                student_user, "math101", "2024ws", ["another_student"]
+                math101_2024ws_student_user, "math101", "2024ws", ["another_student"]
             )
 
     @pytest.mark.asyncio
@@ -412,7 +435,7 @@ class TestMembershipAPIStudents:
 
     @pytest.mark.asyncio
     async def test_list_students_as_observer(self, membership_api, mock_backend):
-        observer = User(username="obs", groups=["term.math101.2024ws.observer"])
+        observer = UserStub(username="obs", groups=["term.math101.2024ws.observer"])
         expected = ["student1", "student2"]
         mock_backend.get_group_members.return_value = expected
 
@@ -421,9 +444,13 @@ class TestMembershipAPIStudents:
         assert result == expected
 
     @pytest.mark.asyncio
-    async def test_list_students_permission_denied(self, membership_api, student_user):
+    async def test_list_students_permission_denied(
+        self, membership_api, math101_2024ws_student_user
+    ):
         # Students in a different term shouldn't be able to list students
-        different_course_student = User(username="alice", groups=["term.phys101.2024ws.student"])
+        different_course_student = UserStub(
+            username="alice", groups=["term.phys101.2024ws.student"]
+        )
 
         with pytest.raises(APIPermissionError):
             await membership_api.list_students(different_course_student, "math101", "2024ws")
