@@ -149,10 +149,19 @@ ROLE_PERMISSIONS: RolePermissions = {
 ### 2. Check permissions directly
 
 ```python
-from e2x_hub_rbac.auth import User, PermissionChecker
+from e2x_hub_rbac.auth import UserLike, PermissionChecker
 
-user = User(username="alice", groups=["term.math101.2024ws.student"])
-checker = PermissionChecker(user, ROLE_PERMISSIONS)
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    """Example user representation."""
+
+    username: str
+    groups: list[str]
+
+alice = User(username="alice", groups=["term.math101.2024ws.student"])
+checker = PermissionChecker(alice, ROLE_PERMISSIONS)
 
 checker.has_permission(Permission, course_id="math101", term_id="2024ws")  # True
 checker.has_permission(Permission, course_id="cs101",   term_id="2024ws")  # False
@@ -164,7 +173,7 @@ Extend `BaseAPI` and annotate methods with `@require_permission`. The decorator 
 
 ```python
 from e2x_hub_rbac.api import BaseAPI
-from e2x_hub_rbac.auth import require_permission
+from e2x_hub_rbac.auth import UserLike, require_permission
 
 class MyAPI(BaseAPI):
     def __init__(self):
@@ -173,9 +182,6 @@ class MyAPI(BaseAPI):
     @require_permission(Permission)
     def get_profile(self, user, course_id, term_id):
         return {"profile": "data"}
-
-api = MyAPI()
-alice = User(username="alice", groups=["term.math101.2024ws.student"])
 
 api.get_profile(alice, "math101", "2024ws")  # succeeds
 api.get_profile(alice, "cs101",   "2024ws")  # raises APIPermissionError (403)
@@ -215,10 +221,10 @@ membership_api = MembershipAPI(
 Manage hub administrators and course creators:
 
 ```python
-from e2x_hub_rbac.auth import User
+from e2x_hub_rbac.auth import UserLike
 
 # Admin user who can manage memberships
-admin = User(username="admin", admin=True, groups=["hub.hub_admin"])
+admin = User(username="admin", groups=["hub.hub_admin"])
 
 # Add/remove hub admins
 await membership_api.add_hub_admins(admin, ["user1", "user2"])

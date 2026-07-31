@@ -2,13 +2,16 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
-from .user import User
-
 
 class Scope(str, Enum):
     HUB = "hub"
     COURSE = "course"
     TERM = "term"
+
+
+class UserLike(Protocol):
+    username: str
+    groups: list[str]
 
 
 class Role(Enum):
@@ -231,7 +234,7 @@ def check_permission(
     required_scope = permission.required_scope
     if required_scope is Scope.COURSE and context.course_id is None:
         raise ValueError(f"{permission.code} requires course_id in the resource context")
-    if required_scope is Scope.TERM and context.term_id is None:
+    if required_scope is Scope.TERM and (context.course_id is None or context.term_id is None):
         raise ValueError(
             f"{permission.code} requires course_id and term_id in the resource context"
         )
@@ -249,7 +252,7 @@ class PermissionChecker:
 
     def __init__(
         self,
-        user: User,
+        user: UserLike,
         role_permissions: RolePermissions,
     ):
         self._user = user
@@ -263,7 +266,7 @@ class PermissionChecker:
                 self._assignments.append(assignment)
 
     @property
-    def user(self) -> User:
+    def user(self) -> UserLike:
         return self._user
 
     @property

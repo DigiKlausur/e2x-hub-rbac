@@ -6,8 +6,8 @@ from .rbac import (
     RoleAssignment,
     RolePermissions,
     Scope,
+    UserLike,
 )
-from .user import User
 
 __all__ = [
     "require_permission",
@@ -17,5 +17,5 @@ __all__ = [
     "RolePermissions",
     "PermissionChecker",
     "Scope",
-    "User",
+    "UserLike",
 ]

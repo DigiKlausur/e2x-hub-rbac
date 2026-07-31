@@ -1,37 +1,8 @@
 """Tests for PermissionChecker."""
 
-import pytest
-
 from e2x_hub_rbac.auth.rbac import PermissionChecker, Role, RoleAssignment
-from e2x_hub_rbac.auth.user import User
 
-from .conftest import Permission
-
-
-@pytest.fixture
-def student_checker(student_user, role_permissions):
-    return PermissionChecker(student_user, role_permissions)
-
-
-@pytest.fixture
-def hub_admin_checker(hub_admin_user, role_permissions):
-    return PermissionChecker(hub_admin_user, role_permissions)
-
-
-@pytest.fixture
-def teaching_assistant_checker(teaching_assistant_user, role_permissions):
-    return PermissionChecker(teaching_assistant_user, role_permissions)
-
-
-@pytest.fixture
-def no_role_checker(no_role_user, role_permissions):
-    return PermissionChecker(no_role_user, role_permissions)
-
-
-@pytest.fixture
-def multi_role_checker(multi_role_user, role_permissions):
-    return PermissionChecker(multi_role_user, role_permissions)
-
+from .models import DummyPermission, UserStub
 
 # ---------------------------------------------------------------------------
 # Initialisation
@@ -39,8 +10,8 @@ def multi_role_checker(multi_role_user, role_permissions):
 
 
 class TestPermissionCheckerInit:
-    def test_user_property(self, student_checker, student_user):
-        assert student_checker.user == student_user
+    def test_user_property(self, student_checker, math101_2024ws_student_user):
+        assert student_checker.user == math101_2024ws_student_user
 
     def test_groups_property(self, student_checker):
         assert student_checker.groups == ["term.math101.2024ws.student"]
@@ -52,7 +23,7 @@ class TestPermissionCheckerInit:
         )
 
     def test_unknown_groups_are_ignored(self, role_permissions):
-        user = User(username="alice", groups=["term.math101.2024ws.student", "custom-group"])
+        user = UserStub(username="alice", groups=["term.math101.2024ws.student", "custom-group"])
         checker = PermissionChecker(user, role_permissions)
         assert len(checker.assignments) == 1
 
@@ -69,7 +40,7 @@ class TestHasPermission:
     def test_student_can_read_own_term(self, student_checker):
         assert (
             student_checker.has_permission(
-                Permission.TERM_READ, course_id="math101", term_id="2024ws"
+                DummyPermission.TERM_READ, course_id="math101", term_id="2024ws"
             )
             is True
         )
@@ -77,7 +48,7 @@ class TestHasPermission:
     def test_student_cannot_read_different_term(self, student_checker):
         assert (
             student_checker.has_permission(
-                Permission.TERM_READ, course_id="math101", term_id="2025ss"
+                DummyPermission.TERM_READ, course_id="math101", term_id="2025ss"
             )
             is False
         )
@@ -85,7 +56,7 @@ class TestHasPermission:
     def test_student_cannot_grade(self, student_checker):
         assert (
             student_checker.has_permission(
-                Permission.TERM_GRADE, course_id="math101", term_id="2024ws"
+                DummyPermission.TERM_GRADE, course_id="math101", term_id="2024ws"
             )
             is False
         )
@@ -93,23 +64,27 @@ class TestHasPermission:
     def test_grader_can_grade(self, teaching_assistant_checker):
         assert (
             teaching_assistant_checker.has_permission(
-                Permission.TERM_GRADE, course_id="math101", term_id="2024ws"
+                DummyPermission.TERM_GRADE, course_id="math101", term_id="2024ws"
             )
             is True
         )
 
     def test_hub_admin_can_do_everything(self, hub_admin_checker):
-        assert hub_admin_checker.has_permission(Permission.HUB_MANAGE) is True
-        assert hub_admin_checker.has_permission(Permission.COURSE_READ, course_id="any") is True
+        assert hub_admin_checker.has_permission(DummyPermission.HUB_MANAGE) is True
         assert (
-            hub_admin_checker.has_permission(Permission.TERM_GRADE, course_id="any", term_id="any")
+            hub_admin_checker.has_permission(DummyPermission.COURSE_READ, course_id="any") is True
+        )
+        assert (
+            hub_admin_checker.has_permission(
+                DummyPermission.TERM_GRADE, course_id="any", term_id="any"
+            )
             is True
         )
 
     def test_no_role_user_denied_everywhere(self, no_role_checker):
         assert (
             no_role_checker.has_permission(
-                Permission.TERM_READ, course_id="math101", term_id="2024ws"
+                DummyPermission.TERM_READ, course_id="math101", term_id="2024ws"
             )
             is False
         )
@@ -118,13 +93,13 @@ class TestHasPermission:
         # Student in math101/2024ws
         assert (
             multi_role_checker.has_permission(
-                Permission.TERM_READ, course_id="math101", term_id="2024ws"
+                DummyPermission.TERM_READ, course_id="math101", term_id="2024ws"
             )
             is True
         )
         assert (
             multi_role_checker.has_permission(
-                Permission.TERM_GRADE, course_id="math101", term_id="2024ws"
+                DummyPermission.TERM_GRADE, course_id="math101", term_id="2024ws"
             )
             is False
         )
@@ -132,19 +107,21 @@ class TestHasPermission:
         # Grader in phys201/2024ws
         assert (
             multi_role_checker.has_permission(
-                Permission.TERM_GRADE, course_id="phys201", term_id="2024ws"
+                DummyPermission.TERM_GRADE, course_id="phys201", term_id="2024ws"
             )
             is True
         )
 
         # Course admin in chem301
         assert (
-            multi_role_checker.has_permission(Permission.COURSE_MANAGE, course_id="chem301") is True
+            multi_role_checker.has_permission(DummyPermission.COURSE_MANAGE, course_id="chem301")
+            is True
         )
 
         # Should not have access to unrelated course
         assert (
-            multi_role_checker.has_permission(Permission.COURSE_MANAGE, course_id="bio101") is False
+            multi_role_checker.has_permission(DummyPermission.COURSE_MANAGE, course_id="bio101")
+            is False
         )
 
 

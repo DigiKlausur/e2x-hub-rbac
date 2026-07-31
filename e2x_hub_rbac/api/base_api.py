@@ -1,8 +1,7 @@
 from logging import Logger, getLogger
 from typing import Optional
 
-from ..auth.rbac import PermissionChecker, PermissionProtocol, RolePermissions
-from ..auth.user import User
+from ..auth.rbac import PermissionChecker, PermissionProtocol, RolePermissions, UserLike
 
 
 class BaseAPI:
@@ -32,7 +31,7 @@ class BaseAPI:
             logger = getLogger(__name__)
         self._role_permissions = role_permissions
 
-    def permission_checker(self, user: User) -> PermissionChecker:
+    def permission_checker(self, user: UserLike) -> PermissionChecker:
         """Get a PermissionChecker instance for the given user.
 
         Args:
@@ -44,7 +43,7 @@ class BaseAPI:
 
     def has_permission(
         self,
-        user: User,
+        user: UserLike,
         permission: PermissionProtocol,
         course_id: Optional[str] = None,
         term_id: Optional[str] = None,

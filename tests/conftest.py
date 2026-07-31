@@ -1,68 +1,14 @@
 """Shared fixtures and helpers for the test suite."""
 
-from enum import Enum
-
 import pytest
 
 from e2x_hub_rbac.auth.rbac import (
-    Role,
+    PermissionChecker,
     RolePermissions,
-    Scope,
+    UserLike,
 )
-from e2x_hub_rbac.auth.user import User
 
-# ---------------------------------------------------------------------------
-# Minimal concrete Permission implementation for testing
-# ---------------------------------------------------------------------------
-
-
-class Permission(Enum):
-    """Test permissions covering all three scopes."""
-
-    # Hub-scoped
-    HUB_MANAGE = ("hub_manage", Scope.HUB)
-    # Course-scoped
-    COURSE_READ = ("course_read", Scope.COURSE)
-    COURSE_MANAGE = ("course_manage", Scope.COURSE)
-    # Term-scoped
-    TERM_READ = ("term_read", Scope.TERM)
-    TERM_GRADE = ("term_grade", Scope.TERM)
-
-    def __init__(self, code: str, required_scope: Scope):
-        self.code = code
-        self.required_scope = required_scope
-
-
-# ---------------------------------------------------------------------------
-# Role→Permission mapping
-# ---------------------------------------------------------------------------
-
-
-ROLE_PERMISSIONS: RolePermissions = {
-    Role.HUB_ADMIN: frozenset(
-        [
-            Permission.HUB_MANAGE,
-            Permission.COURSE_READ,
-            Permission.COURSE_MANAGE,
-            Permission.TERM_READ,
-            Permission.TERM_GRADE,
-        ]
-    ),
-    Role.COURSE_CREATOR: frozenset([Permission.HUB_MANAGE]),
-    Role.COURSE_OWNER: frozenset(
-        [
-            Permission.COURSE_READ,
-            Permission.COURSE_MANAGE,
-            Permission.TERM_READ,
-            Permission.TERM_GRADE,
-        ]
-    ),
-    Role.INSTRUCTOR: frozenset([Permission.TERM_READ, Permission.TERM_GRADE]),
-    Role.TEACHING_ASSISTANT: frozenset([Permission.TERM_READ, Permission.TERM_GRADE]),
-    Role.STUDENT: frozenset([Permission.TERM_READ]),
-    Role.OBSERVER: frozenset([Permission.TERM_READ]),
-}
-
+from .models import TEST_ROLE_PERMISSIONS, UserStub
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -71,33 +17,33 @@ ROLE_PERMISSIONS: RolePermissions = {
 
 @pytest.fixture
 def role_permissions() -> RolePermissions:
-    return ROLE_PERMISSIONS
+    return TEST_ROLE_PERMISSIONS
 
 
 @pytest.fixture
-def hub_admin_user() -> User:
-    return User(username="admin", admin=True, groups=["hub.hub_admin"])
+def hub_admin_user() -> UserLike:
+    return UserStub(username="admin", groups=["hub.hub_admin"])
 
 
 @pytest.fixture
-def course_admin_user() -> User:
-    return User(username="course_admin", groups=["course.math101.course_admin"])
+def math101_course_owner_user() -> UserLike:
+    return UserStub(username="course_owner", groups=["course.math101.course_owner"])
 
 
 @pytest.fixture
-def student_user() -> User:
-    return User(username="alice", groups=["term.math101.2024ws.student"])
+def math101_2024ws_student_user() -> UserLike:
+    return UserStub(username="alice", groups=["term.math101.2024ws.student"])
 
 
 @pytest.fixture
-def teaching_assistant_user() -> User:
-    return User(username="bob", groups=["term.math101.2024ws.teaching_assistant"])
+def math101_2024ws_teaching_assistant_user() -> UserLike:
+    return UserStub(username="bob", groups=["term.math101.2024ws.teaching_assistant"])
 
 
 @pytest.fixture
-def multi_role_user() -> User:
+def multi_course_multi_role_user() -> UserLike:
     """User with roles in two different courses/terms."""
-    return User(
+    return UserStub(
         username="multi",
         groups=[
             "term.math101.2024ws.student",
@@ -108,5 +54,30 @@ def multi_role_user() -> User:
 
 
 @pytest.fixture
-def no_role_user() -> User:
-    return User(username="nobody", groups=[])
+def no_role_user() -> UserLike:
+    return UserStub(username="nobody", groups=[])
+
+
+@pytest.fixture
+def student_checker(math101_2024ws_student_user, role_permissions):
+    return PermissionChecker(math101_2024ws_student_user, role_permissions)
+
+
+@pytest.fixture
+def hub_admin_checker(hub_admin_user, role_permissions):
+    return PermissionChecker(hub_admin_user, role_permissions)
+
+
+@pytest.fixture
+def teaching_assistant_checker(math101_2024ws_teaching_assistant_user, role_permissions):
+    return PermissionChecker(math101_2024ws_teaching_assistant_user, role_permissions)
+
+
+@pytest.fixture
+def no_role_checker(no_role_user, role_permissions):
+    return PermissionChecker(no_role_user, role_permissions)
+
+
+@pytest.fixture
+def multi_role_checker(multi_course_multi_role_user, role_permissions):
+    return PermissionChecker(multi_course_multi_role_user, role_permissions)
