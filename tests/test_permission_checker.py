@@ -126,27 +126,53 @@ class TestHasPermission:
 
 
 # ---------------------------------------------------------------------------
-# get_roles_in_course_and_term
+# get_roles_in_course
 # ---------------------------------------------------------------------------
 
 
-class TestGetRolesInCourseAndTerm:
+class TestGetRolesInCourse:
     def test_student_role_returned(self, student_checker):
-        roles = student_checker.get_roles_in_course_and_term("math101", "2024ws")
-        assert Role.STUDENT in roles
+        roles = student_checker.get_roles_in_course("math101")
+        # Should be empty because the student role is term-scoped, not course-scoped
+        assert roles == set()
 
     def test_empty_for_unrelated_course(self, student_checker):
-        roles = student_checker.get_roles_in_course_and_term("phys201", "2024ws")
+        roles = student_checker.get_roles_in_course("phys201")
         assert roles == set()
 
     def test_hub_admin_role_returned_for_any_course(self, hub_admin_checker):
-        roles = hub_admin_checker.get_roles_in_course_and_term("any_course", "any_term")
+        roles = hub_admin_checker.get_roles_in_course("any_course")
         assert Role.HUB_ADMIN in roles
 
     def test_multi_role_user(self, multi_role_checker):
-        roles = multi_role_checker.get_roles_in_course_and_term("math101", "2024ws")
+        roles = multi_role_checker.get_roles_in_course("math101")
+        assert roles == set()  # Student role is term-scoped, not course-scoped
+        roles = multi_role_checker.get_roles_in_course("chem301")
+        assert Role.COURSE_OWNER in roles
+
+
+# ---------------------------------------------------------------------------
+# get_roles_in_term
+# ---------------------------------------------------------------------------
+
+
+class TestGetRolesInTerm:
+    def test_student_role_returned(self, student_checker):
+        roles = student_checker.get_roles_in_term("math101", "2024ws")
         assert Role.STUDENT in roles
-        roles = multi_role_checker.get_roles_in_course_and_term("phys201", "2024ws")
+
+    def test_empty_for_unrelated_course(self, student_checker):
+        roles = student_checker.get_roles_in_term("phys201", "2024ws")
+        assert roles == set()
+
+    def test_instructor_role_returned_for_any_term(self, hub_admin_checker):
+        roles = hub_admin_checker.get_roles_in_term("any_course", "any_term")
+        assert Role.HUB_ADMIN in roles
+
+    def test_multi_role_user(self, multi_role_checker):
+        roles = multi_role_checker.get_roles_in_term("math101", "2024ws")
+        assert Role.STUDENT in roles
+        roles = multi_role_checker.get_roles_in_term("phys201", "2024ws")
         assert Role.TEACHING_ASSISTANT in roles
 
 

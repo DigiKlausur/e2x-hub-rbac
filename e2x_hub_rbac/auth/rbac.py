@@ -291,7 +291,38 @@ class PermissionChecker:
             context=context,
         )
 
-    def get_roles_in_course_and_term(self, course_id: str, term_id: str) -> set[Role]:
+    def get_roles_in_hub(self) -> set[Role]:
+        """Return the roles the user has at the hub level."""
+        roles = set()
+        for assignment in self._assignments:
+            if assignment.scope is Scope.HUB:
+                roles.add(assignment.role)
+        return roles
+
+    def get_permissions_in_hub(self) -> set[PermissionProtocol]:
+        """Return the permissions the user has at the hub level."""
+        permissions = set()
+        for role in self.get_roles_in_hub():
+            permissions.update(self._role_permissions[role])
+        return permissions
+
+    def get_roles_in_course(self, course_id: str) -> set[Role]:
+        """Return the roles the user has in a specific course."""
+        context = ResourceContext(course_id=course_id)
+        roles = set()
+        for assignment in self._assignments:
+            if _assignment_applies_to(assignment, context):
+                roles.add(assignment.role)
+        return set([role for role in roles if role.scope in (Scope.COURSE, Scope.HUB)])
+
+    def get_permissions_in_course(self, course_id: str) -> set[PermissionProtocol]:
+        """Return the permissions the user has in a specific course."""
+        permissions = set()
+        for role in self.get_roles_in_course(course_id):
+            permissions.update(self._role_permissions[role])
+        return permissions
+
+    def get_roles_in_term(self, course_id: str, term_id: str) -> set[Role]:
         """Return the roles the user has in a specific course and term."""
         context = ResourceContext(course_id=course_id, term_id=term_id)
         roles = set()
@@ -299,6 +330,13 @@ class PermissionChecker:
             if _assignment_applies_to(assignment, context):
                 roles.add(assignment.role)
         return roles
+
+    def get_permissions_in_term(self, course_id: str, term_id: str) -> set[PermissionProtocol]:
+        """Return the permissions the user has in a specific course and term."""
+        permissions = set()
+        for role in self.get_roles_in_term(course_id, term_id):
+            permissions.update(self._role_permissions[role])
+        return permissions
 
     def get_course_ids(self) -> set[str]:
         """Return the list of course IDs for which the user has any role assignment."""
