@@ -313,7 +313,7 @@ class PermissionChecker:
         for assignment in self._assignments:
             if _assignment_applies_to(assignment, context):
                 roles.add(assignment.role)
-        return roles
+        return set([role for role in roles if role.scope in (Scope.COURSE, Scope.HUB)])
 
     def get_permissions_in_course(self, course_id: str) -> set[PermissionProtocol]:
         """Return the permissions the user has in a specific course."""
