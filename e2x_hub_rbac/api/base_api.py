@@ -11,8 +11,8 @@ class BaseAPI:
     checking utilities for course-based operations.
 
     Attributes:
-        server_config_file: The path to the server configuration file
-        server: The Server configuration containing courses, profiles, and roles
+        logger: Logger instance for logging messages.
+        _role_permissions: Mapping of roles to their associated permissions.
     """
 
     def __init__(
@@ -29,6 +29,7 @@ class BaseAPI:
         """
         if logger is None:
             logger = getLogger(__name__)
+        self.logger = logger
         self._role_permissions = role_permissions
 
     def permission_checker(self, user: UserLike) -> PermissionChecker:

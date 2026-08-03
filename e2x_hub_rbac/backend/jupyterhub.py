@@ -1,7 +1,7 @@
 import json
-from posixpath import join as urljoin
 
 import httpx
+from jupyterhub.utils import url_path_join as urljoin
 
 from .errors import GroupNotFoundError, HubAPIError, InvalidInputError, UserNotFoundError
 from .protocol import GroupBackend
@@ -21,20 +21,14 @@ class HubAPI(GroupBackend):
             api_token: JupyterHub API token for authentication.
             api_url: Base URL of the JupyterHub API.
         """
-        self.api_token = api_token
         self.api_url = api_url.rstrip("/")
         self._client = httpx.AsyncClient(
-            base_url=self.api_url, headers={"Authorization": f"token {self.api_token}"}
+            base_url=self.api_url, headers={"Authorization": f"token {api_token}"}
         )
 
     def _url(self, *parts: str) -> str:
         """Build a full API URL from path segments."""
         return urljoin(self.api_url, *parts)
-
-    @property
-    def auth_header(self):
-        """Get authorization header for Hub API requests."""
-        return {"Authorization": f"token {self.api_token}"}
 
     async def request(self, url, method="GET", body=None) -> httpx.Response:
         """Make an authenticated request to the Hub API.
@@ -321,7 +315,7 @@ class HubAPI(GroupBackend):
         url = self._url("groups", groupname)
         try:
             resp = await self.request(url, method="DELETE")
-            return resp.json()
+            return resp.json() if resp.content else None
         except httpx.HTTPStatusError as e:
             self._handle_not_found(e, "group", groupname)
 

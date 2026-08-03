@@ -1,52 +1,65 @@
 import functools
 import inspect
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
 
 from ..errors import APIPermissionError
-from .rbac import PermissionProtocol, UserLike
+from .rbac import PermissionChecker, PermissionProtocol, UserLike
+
+
+class HasPermissionChecker(Protocol):
+    def permission_checker(self, user: UserLike) -> PermissionChecker: ...
 
 
 def require_permission(permission: PermissionProtocol) -> Callable[..., Any]:
-    """Decorator that checks a permission before executing the method.
+    """Decorator that checks a permission before executing a method.
 
-    Extracts ``user``, ``course_id``, and ``term_id`` from the decorated
-    method's arguments (by name).  ``course_id`` and ``term_id`` are
-    optional and default to ``None`` when absent.
+    The decorated callable must:
 
-    The decorated method must live on a class that has a ``permission_checker(user: User)`` method
-    that returns a ``PermissionChecker`` instance for the given user.
-
-    Usage::
-
-        @require_permission(Permission.PROFILE_SPAWN_STUDENT)
-        def get_student_term_profile(self, user, course_id, term_id):
-            ...
+    - be an instance method
+    - accept a ``user`` parameter
+    - belong to a class implementing ``permission_checker(user)``
     """
 
-    def decorator(method):
+    def decorator(method: Callable[..., Any]) -> Callable[..., Any]:
         sig = inspect.signature(method)
 
-        @functools.wraps(method)
-        def wrapper(*args, **kwargs):
+        def _authorize(*args, **kwargs) -> None:
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
             arguments = bound.arguments
 
-            self = arguments["self"]
+            self: HasPermissionChecker = arguments["self"]
             user: UserLike = arguments["user"]
             course_id: str | None = arguments.get("course_id")
             term_id: str | None = arguments.get("term_id")
 
             checker = self.permission_checker(user)
-            if not checker.has_permission(permission, course_id=course_id, term_id=term_id):
+            if not checker.has_permission(
+                permission,
+                course_id=course_id,
+                term_id=term_id,
+            ):
                 raise APIPermissionError(
                     username=user.username,
                     permission=permission,
                     course_id=course_id,
                     term_id=term_id,
                 )
+
+        if inspect.iscoroutinefunction(method):
+
+            @functools.wraps(method)
+            async def async_wrapper(*args, **kwargs):
+                _authorize(*args, **kwargs)
+                return await method(*args, **kwargs)
+
+            return async_wrapper
+
+        @functools.wraps(method)
+        def sync_wrapper(*args, **kwargs):
+            _authorize(*args, **kwargs)
             return method(*args, **kwargs)
 
-        return wrapper
+        return sync_wrapper
 
     return decorator
