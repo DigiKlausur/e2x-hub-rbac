@@ -44,11 +44,11 @@ class TestBaseAPI:
             is False
         )
 
-    def test_has_permission_hub_admin(self, api, hub_admin_user):
-        assert api.has_permission(hub_admin_user, DummyPermission.HUB_MANAGE) is True
+    def test_has_permission_hub_admin(self, api, lms_admin_user):
+        assert api.has_permission(lms_admin_user, DummyPermission.HUB_MANAGE) is True
         assert (
             api.has_permission(
-                hub_admin_user, DummyPermission.TERM_GRADE, course_id="c1", term_id="t1"
+                lms_admin_user, DummyPermission.TERM_GRADE, course_id="c1", term_id="t1"
             )
             is True
         )

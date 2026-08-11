@@ -48,40 +48,40 @@ class MembershipAPI(BaseAPI):
         except GroupNotFoundError:
             return []
 
-    @require_permission(MembershipPermission.ADD_HUB_ADMIN)
-    async def add_hub_admins(self, user: UserLike, usernames: list[str]):
+    @require_permission(MembershipPermission.ADD_LMS_ADMIN)
+    async def add_lms_admins(self, user: UserLike, usernames: list[str]):
         """Add users to the Hub Admin role."""
-        role_assignment = RoleAssignment.hub(role=Role.HUB_ADMIN)
+        role_assignment = RoleAssignment.lms(role=Role.LMS_ADMIN)
         await self.__add_role_assignment(role_assignment, usernames)
 
-    @require_permission(MembershipPermission.REMOVE_HUB_ADMIN)
-    async def remove_hub_admins(self, user: UserLike, usernames: list[str]):
+    @require_permission(MembershipPermission.REMOVE_LMS_ADMIN)
+    async def remove_lms_admins(self, user: UserLike, usernames: list[str]):
         """Remove users from the Hub Admin role."""
-        role_assignment = RoleAssignment.hub(role=Role.HUB_ADMIN)
+        role_assignment = RoleAssignment.lms(role=Role.LMS_ADMIN)
         await self.__remove_role_assignment(role_assignment, usernames)
 
-    @require_permission(MembershipPermission.LIST_HUB_ADMINS)
-    async def list_hub_admins(self, user: UserLike) -> list[str]:
+    @require_permission(MembershipPermission.LIST_LMS_ADMINS)
+    async def list_lms_admins(self, user: UserLike) -> list[str]:
         """List all users in the Hub Admin role."""
-        role_assignment = RoleAssignment.hub(role=Role.HUB_ADMIN)
+        role_assignment = RoleAssignment.lms(role=Role.LMS_ADMIN)
         return await self.__list_role_assignment_members(role_assignment)
 
     @require_permission(MembershipPermission.ADD_COURSE_CREATOR)
     async def add_course_creators(self, user: UserLike, usernames: list[str]):
         """Add users to the Course Creator role."""
-        role_assignment = RoleAssignment.hub(role=Role.COURSE_CREATOR)
+        role_assignment = RoleAssignment.lms(role=Role.COURSE_CREATOR)
         await self.__add_role_assignment(role_assignment, usernames)
 
     @require_permission(MembershipPermission.REMOVE_COURSE_CREATOR)
     async def remove_course_creators(self, user: UserLike, usernames: list[str]):
         """Remove users from the Course Creator role."""
-        role_assignment = RoleAssignment.hub(role=Role.COURSE_CREATOR)
+        role_assignment = RoleAssignment.lms(role=Role.COURSE_CREATOR)
         await self.__remove_role_assignment(role_assignment, usernames)
 
     @require_permission(MembershipPermission.LIST_COURSE_CREATORS)
     async def list_course_creators(self, user: UserLike) -> list[str]:
         """List all users in the Course Creator role."""
-        role_assignment = RoleAssignment.hub(role=Role.COURSE_CREATOR)
+        role_assignment = RoleAssignment.lms(role=Role.COURSE_CREATOR)
         return await self.__list_role_assignment_members(role_assignment)
 
     @require_permission(MembershipPermission.ADD_COURSE_OWNER)

@@ -1,26 +1,146 @@
 # e2x-hub-rbac
 
-Role-Based Access Control (RBAC) for JupyterHub within the e2x ecosystem, supporting hierarchical scopes (Hub, Course, Term) based on JupyterHub groups.
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![PyPI Version](https://img.shields.io/pypi/v/e2x-hub-rbac.svg)](https://pypi.org/project/e2x-hub-rbac/)
 
+
+`e2x-hub-rbac` provides the **management and authorization layer for LMS-like applications running on JupyterHub** within the e2x ecosystem.
+
+It connects JupyterHub's users and groups with the concepts an LMS needs to manage courses, terms, and participants. Rather than implementing a complete LMS itself, the package provides the common infrastructure for managing **who can do what, and where**.
+
+A typical setup looks roughly like this:
+
+```text
+                    ┌─────────────────────────┐
+                    │       JupyterHub        │
+                    │                         │
+                    │  Users + Groups         │
+                    └────────────┬────────────┘
+                                 │
+                                 │
+                    ┌────────────▼────────────┐
+                    │      e2x-hub-rbac       │
+                    │                         │
+                    │  Roles & Permissions    │
+                    │  Scope Resolution       │
+                    │  Membership Management  │
+                    └────────────┬────────────┘
+                                 │
+                ┌────────────────┼────────────────┐
+                │                │                │
+       ┌────────▼───────┐ ┌──────▼──────┐ ┌──────▼──────┐
+       │   LMS / Course │ │  Assessment │ │ Other e2x   │
+       │   Management   │ │   Services  │ │   Services  │
+       └────────────────┘ └─────────────┘ └─────────────┘
+```
+
+The idea is to use **JupyterHub as the user and group management infrastructure**, while `e2x-hub-rbac` adds the LMS-specific concepts needed by applications built on top of it.
+
+For example, an LMS-like application may need to answer questions such as:
+
+* Is this user an LMS administrator?
+* Can this user create a course?
+* Is this user the owner of course `math101`?
+* Is this user an instructor for `math101` during the `2024ws` term?
+* Can this teaching assistant add students to that term?
+* Can this observer view the members of a term?
+
+`e2x-hub-rbac` provides a common way to represent and enforce these relationships.
+
+## What does it provide?
+
+The package has two closely related responsibilities:
+
+1. **Authorization** — Translate JupyterHub group memberships into roles and determine whether a role grants a requested permission.
+2. **Membership management** — Provide an API for managing those roles by adding and removing users from the corresponding JupyterHub groups.
+
+The package deliberately does **not** try to be a complete LMS. Course data, terms, assessments, content, and other domain-specific functionality remain the responsibility of consuming applications.
+
+Instead, `e2x-hub-rbac` provides the shared management layer that applications can build upon.
+
 ---
 
-## Overview
+## The RBAC Model
 
-`e2x-hub-rbac` provides role-based access control for JupyterHub with two main capabilities:
+The authorization model is based on three hierarchical scopes:
 
-1. **Permission Checking**: Maps JupyterHub group memberships to predefined roles and evaluates permissions.
-2. **Membership Management**: Provides an API to add, remove, and list users in roles with automatic permission checking.
+* **LMS** — Global permissions across the LMS.
+* **Course** — Permissions for a specific course and all of its terms.
+* **Term** — Permissions for a specific course and term.
 
-The core idea:
+Users receive roles through JupyterHub group memberships. For example:
 
-1. A user's JupyterHub groups are parsed into **role assignments** at a specific scope (Hub, Course, or Term).
-2. Consuming packages define **permissions** and a **role → permissions** mapping.
-3. The `PermissionChecker` (or the `require_permission` decorator) evaluates whether a user's roles grant a requested permission within the given scope.
-4. The `MembershipAPI` manages user-role assignments via a backend (e.g., JupyterHub's group API).
+```text
+lms.lms-admin
+lms.course-creator
+lms.course.math101.course-owner
+lms.course.math101.term.2024ws.instructor
+lms.course.math101.term.2024ws.student
+```
+
+These groups are interpreted as role assignments:
+
+```text
+LMS
+└── LMS_ADMIN
+
+LMS
+└── COURSE_CREATOR
+
+Course: math101
+└── COURSE_OWNER
+
+Course: math101
+└── Term: 2024ws
+    └── INSTRUCTOR
+
+Course: math101
+└── Term: 2024ws
+    └── STUDENT
+```
+
+Consuming applications then define which permissions each role provides.
+
+For example, an application might define:
+
+```python
+class ViewProfile(PermissionProtocol):
+    code = "view_profile"
+    required_scope = Scope.TERM
+```
+
+and decide that `INSTRUCTOR`, `TEACHING_ASSISTANT`, and `STUDENT` can exercise that permission within their respective terms.
+
+This separation is intentional:
+
+* **`e2x-hub-rbac` defines the roles and authorization machinery.**
+* **The consuming application defines its permissions and what each role is allowed to do.**
+* **JupyterHub stores the users and group memberships.**
+
+---
+
+## Why use it?
+
+An LMS-like application running on JupyterHub typically needs both JupyterHub's infrastructure and LMS-specific authorization concepts.
+
+Without a common layer, every application would have to implement its own:
+
+* Role definitions
+* Course and term scoping
+* JupyterHub group-name parsing
+* Permission checks
+* Membership management
+* Authorization decorators
+* JupyterHub API integration
+
+`e2x-hub-rbac` centralizes these concerns so that multiple e2x services can use the same roles, group conventions, and authorization model.
+
+In short:
+
+> **JupyterHub provides the users and groups; `e2x-hub-rbac` turns those groups into an LMS-oriented management and authorization model.**
+
+The remainder of this document describes the roles, group naming convention, permission resolution, and APIs provided by the package.
 
 ---
 
@@ -30,13 +150,13 @@ Roles are fixed and ship with this package.
 
 | Role | Scope | Group name format |
 |------|-------|-------------------|
-| `HUB_ADMIN` | Hub | `hub.hub_admin` |
-| `COURSE_CREATOR` | Hub | `hub.course_creator` |
-| `COURSE_OWNER` | Course | `course.{course_id}.course_owner` |
-| `INSTRUCTOR` | Term | `term.{course_id}.{term_id}.instructor` |
-| `TEACHING_ASSISTANT` | Term | `term.{course_id}.{term_id}.teaching_assistant` |
-| `OBSERVER` | Term | `term.{course_id}.{term_id}.observer` |
-| `STUDENT` | Term | `term.{course_id}.{term_id}.student` |
+| `LMS_ADMIN` | LMS | `lms.lms-admin` |
+| `COURSE_CREATOR` | LMS | `lms.course-creator` |
+| `COURSE_OWNER` | Course | `lms.course.{course_id}.course-owner` |
+| `INSTRUCTOR` | Term | `lms.course.{course_id}.term.{term_id}.instructor` |
+| `TEACHING_ASSISTANT` | Term | `lms.course.{course_id}.term.{term_id}.teaching_assistant` |
+| `OBSERVER` | Term | `lms.course.{course_id}.term.{term_id}.observer` |
+| `STUDENT` | Term | `lms.course.{course_id}.term.{term_id}.student` |
 
 ---
 
@@ -48,20 +168,20 @@ JupyterHub group memberships are automatically parsed into role assignments base
 
 Group names follow these patterns:
 
-- **Hub-level roles**: `hub.<role_name>`
-- **Course-level roles**: `course.<course_id>.<role_name>`
-- **Term-level roles**: `term.<course_id>.<term_id>.<role_name>`
+- **LMS-level roles**: `lms.<role_name>`
+- **Course-level roles**: `lms.course.<course_id>.<role_name>`
+- **Term-level roles**: `lms.course.<course_id>.term.<term_id>.<role_name>`
 
 ### Examples
 
 ```
-hub.hub_admin                                    # Hub admin (global access)
-hub.course_creator                               # Can create courses (global)
-course.math101.course_owner                      # Owner of course math101
-term.math101.2024ws.instructor                   # Instructor for math101 in 2024ws
-term.math101.2024ws.teaching_assistant           # TA for math101 in 2024ws
-term.cs101.2024ss.student                        # Student in cs101 for 2024ss
-term.physics201.2025ws.observer                  # Observer in physics201 for 2025ws
+lms.lms-admin                                      # LMS admin (global access)
+lms.course-creator                                 # Can create courses (global)
+lms.course.math101.course-owner                    # Owner of course math101
+lms.course.math101.term.2024ws.instructor          # Instructor for math101 in 2024ws
+lms.course.math101..2024ws.teaching_assistant  # TA for math101 in 2024ws
+lms.course.cs101.term.2024ss.student               # Student in cs101 for 2024ss
+lms.course.physics201.term.2025ws.observer         # Observer in physics201 for 2025ws
 ```
 
 ### Parsing Rules
@@ -76,18 +196,18 @@ term.physics201.2025ws.observer                  # Observer in physics201 for 20
 These group names will be ignored during parsing:
 
 ```
-admin                          # Missing scope prefix
-hub.invalid_role               # Unknown role name
-course.math101                 # Missing role name
-term.math101.instructor        # Missing term_id
-hub.math101.student            # Wrong scope for student role
+admin                                        # Missing scope prefix
+lms.invalid_role                             # Unknown role name
+lms.course.math101                           # Missing role name
+lms.course.math101.math101.term.instructor   # Missing term_id
+lms.course.math101.student                   # Wrong scope for student role
 ```
 
 ---
 
 ## Permission Resolution
 
-- **Hub** roles apply globally to any resource.
+- **Lms** roles apply globally to any resource.
 - **Course** roles apply to their course and all terms within it.
 - **Term** roles apply only to their specific course + term combination.
 
@@ -134,7 +254,7 @@ class Permission(PermissionProtocol):
     required_scope = Scope.TERM
 
 ROLE_PERMISSIONS: RolePermissions = {
-    Role.HUB_ADMIN:           frozenset({Permission}),
+    Role.LMS_ADMIN:           frozenset({Permission}),
     Role.COURSE_CREATOR:      frozenset(),
     Role.COURSE_OWNER:        frozenset({Permission}),
     Role.INSTRUCTOR:          frozenset({Permission}),
@@ -160,7 +280,7 @@ class User:
     username: str
     groups: list[str]
 
-alice = User(username="alice", groups=["term.math101.2024ws.student"])
+alice = User(username="alice", groups=["lms.course.math101.term.2024ws.student"])
 checker = PermissionChecker(alice, ROLE_PERMISSIONS)
 
 checker.has_permission(Permission, course_id="math101", term_id="2024ws")  # True
@@ -216,20 +336,20 @@ membership_api = MembershipAPI(
 )
 ```
 
-### Hub-Level Operations
+### LMS-Level Operations
 
-Manage hub administrators and course creators:
+Manage lms administrators and course creators:
 
 ```python
 from e2x_hub_rbac.auth import UserLike
 
 # Admin user who can manage memberships
-admin = User(username="admin", groups=["hub.hub_admin"])
+admin = User(username="admin", groups=["lms.lms-admin"])
 
-# Add/remove hub admins
-await membership_api.add_hub_admins(admin, ["user1", "user2"])
-await membership_api.remove_hub_admins(admin, ["user1"])
-admins = await membership_api.list_hub_admins(admin)
+# Add/remove lms admins
+await membership_api.add_lms_admins(admin, ["user1", "user2"])
+await membership_api.remove_lms_admins(admin, ["user1"])
+admins = await membership_api.list_lms_admins(admin)
 
 # Add/remove course creators
 await membership_api.add_course_creators(admin, ["instructor1"])
@@ -283,27 +403,27 @@ All membership operations are protected by permissions. Different roles can perf
 
 | Operation | Required Permission | Who Can Do It |
 |-----------|-------------------|---------------|
-| Manage hub admins | Hub-scoped | Hub admins only |
-| Manage course creators | Hub-scoped | Hub admins only |
-| Manage course owners | Course-scoped | Hub admins, course owners |
-| Manage instructors | Term-scoped | Hub admins, course owners, instructors |
-| Manage TAs | Term-scoped | Hub admins, course owners, instructors |
-| Manage observers | Term-scoped | Hub admins, course owners, instructors |
-| Manage students | Term-scoped | Hub admins, course owners, instructors, TAs |
-| List members | Term-scoped | Hub admins, course owners, instructors, TAs, observers |
+| Manage LMS admins | LMS-scoped | LMS admins only |
+| Manage course creators | LMS-scoped | LMS admins only |
+| Manage course owners | Course-scoped | LMS admins, course owners |
+| Manage instructors | Term-scoped | LMS admins, course owners, instructors |
+| Manage TAs | Term-scoped | LMS admins, course owners, instructors |
+| Manage observers | Term-scoped | LMS admins, course owners, instructors |
+| Manage students | Term-scoped | LMS admins, course owners, instructors, TAs |
+| List term members | Term-scoped | LMS admins, course owners, instructors, TAs, observers |
 
 Example of permission checking:
 
 ```python
 # Course owner can manage their course
-course_owner = User(username="prof", groups=["course.math101.course_owner"])
+course_owner = User(username="prof", groups=["lms.course.math101.course-owner"])
 await membership_api.add_students(course_owner, "math101", "2024ws", ["student1"])  # ✓ Succeeds
 
 # But cannot manage a different course
 await membership_api.add_students(course_owner, "cs101", "2024ws", ["student1"])  # ✗ Raises APIPermissionError
 
 # Teaching assistant can add students
-ta = User(username="ta", groups=["term.math101.2024ws.teaching_assistant"])
+ta = User(username="ta", groups=["lms.course.math101.term.2024ws.teaching-assistant"])
 await membership_api.add_students(ta, "math101", "2024ws", ["student2"])  # ✓ Succeeds
 
 # But cannot remove instructors

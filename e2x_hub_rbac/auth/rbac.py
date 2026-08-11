@@ -4,7 +4,7 @@ from typing import Protocol
 
 
 class Scope(str, Enum):
-    HUB = "hub"
+    LMS = "lms"
     COURSE = "course"
     TERM = "term"
 
@@ -18,11 +18,11 @@ class Role(Enum):
     role_name: str
     scope: Scope
 
-    HUB_ADMIN = ("hub_admin", Scope.HUB)
-    COURSE_CREATOR = ("course_creator", Scope.HUB)
-    COURSE_OWNER = ("course_owner", Scope.COURSE)
+    LMS_ADMIN = ("lms-admin", Scope.LMS)
+    COURSE_CREATOR = ("course-creator", Scope.LMS)
+    COURSE_OWNER = ("course-owner", Scope.COURSE)
     INSTRUCTOR = ("instructor", Scope.TERM)
-    TEACHING_ASSISTANT = ("teaching_assistant", Scope.TERM)
+    TEACHING_ASSISTANT = ("teaching-assistant", Scope.TERM)
     OBSERVER = ("observer", Scope.TERM)
     STUDENT = ("student", Scope.TERM)
 
@@ -87,10 +87,10 @@ class RoleAssignment:
     term_id: str | None = None
 
     @classmethod
-    def hub(cls, role: Role):
+    def lms(cls, role: Role):
         """Create a hub-level role assignment."""
-        if role.scope is not Scope.HUB:
-            raise ValueError(f"Role {role.role_name} is not a hub-level role")
+        if role.scope is not Scope.LMS:
+            raise ValueError(f"Role {role.role_name} is not a lms-level role")
         return cls(role=role)
 
     @classmethod
@@ -117,12 +117,12 @@ class RoleAssignment:
 
     @property
     def group_name(self) -> str:
-        if self.scope is Scope.HUB:
-            return f"hub.{self.role.role_name}"
+        if self.scope is Scope.LMS:
+            return f"lms.{self.role.role_name}"
         if self.scope is Scope.COURSE:
-            return f"course.{self.course_id}.{self.role.role_name}"
+            return f"lms.course.{self.course_id}.{self.role.role_name}"
         if self.scope is Scope.TERM:
-            return f"term.{self.course_id}.{self.term_id}.{self.role.role_name}"
+            return f"lms.course.{self.course_id}.term.{self.term_id}.{self.role.role_name}"
         raise ValueError(f"Invalid role scope: {self.scope}")
 
     @classmethod
@@ -130,38 +130,27 @@ class RoleAssignment:
         """Parse a JupyterHub group name into a RoleAssignment.
 
         Formats:
-            hub.<role_id>
-            course.<course_id>.<role_id>
-            term.<course_id>.<term_id>.<role_id>
+            lms.<role_id>
+            lms.course.<course_id>.<role_id>
+            lms.course.<course_id>.term.<term_id>.<role_id>
 
         Returns None if the group name doesn't match a known format.
         """
-        parts = group_name.split(".")
-        if len(parts) < 2:
-            return None
+        match group_name.split("."):
+            case ["lms", role_id]:
+                role = _lookup_role(role_id, Scope.LMS)
+                return cls.lms(role=role) if role else None
 
-        scope_str = parts[0]
+            case ["lms", "course", course_id, role_id]:
+                role = _lookup_role(role_id, Scope.COURSE)
+                return cls.course(role=role, course_id=course_id) if role else None
 
-        if scope_str == "hub" and len(parts) == 2:
-            role = _lookup_role(parts[1], Scope.HUB)
-            if role is None:
+            case ["lms", "course", course_id, "term", term_id, role_id]:
+                role = _lookup_role(role_id, Scope.TERM)
+                return cls.term(role=role, course_id=course_id, term_id=term_id) if role else None
+
+            case _:
                 return None
-            return cls.hub(role=role)
-
-        if scope_str == "course" and len(parts) == 3:
-            role = _lookup_role(parts[2], Scope.COURSE)
-            if role is None:
-                return None
-            return cls.course(role=role, course_id=parts[1])
-
-        if scope_str == "term" and len(parts) == 4:
-            role = _lookup_role(parts[3], Scope.TERM)
-
-            if role is None:
-                return None
-            return cls.term(role=role, course_id=parts[1], term_id=parts[2])
-
-        return None
 
 
 def _assignment_applies_to(assignment: RoleAssignment, context: ResourceContext) -> bool:
@@ -179,7 +168,7 @@ def _assignment_applies_to(assignment: RoleAssignment, context: ResourceContext)
     """
     scope = assignment.scope
 
-    if scope is Scope.HUB:
+    if scope is Scope.LMS:
         return True
 
     if scope is Scope.COURSE:
@@ -295,7 +284,7 @@ class PermissionChecker:
         """Return the roles the user has at the hub level."""
         roles = set()
         for assignment in self._assignments:
-            if assignment.scope is Scope.HUB:
+            if assignment.scope is Scope.LMS:
                 roles.add(assignment.role)
         return roles
 
@@ -313,7 +302,7 @@ class PermissionChecker:
         for assignment in self._assignments:
             if _assignment_applies_to(assignment, context):
                 roles.add(assignment.role)
-        return {role for role in roles if role.scope in (Scope.COURSE, Scope.HUB)}
+        return {role for role in roles if role.scope in (Scope.COURSE, Scope.LMS)}
 
     def get_permissions_in_course(self, course_id: str) -> set[PermissionProtocol]:
         """Return the permissions the user has in a specific course."""
