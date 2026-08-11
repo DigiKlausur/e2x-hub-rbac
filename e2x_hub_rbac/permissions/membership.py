@@ -7,13 +7,13 @@ class MembershipPermission(PermissionEnum):
     # ------------------------------
     # Hub-level permissions
     # -----------------------------
-    ADD_HUB_ADMIN = ("membership.hub.add_hub_admin", Scope.HUB)
-    REMOVE_HUB_ADMIN = ("membership.hub.remove_hub_admin", Scope.HUB)
-    LIST_HUB_ADMINS = ("membership.hub.list_hub_admins", Scope.HUB)
+    ADD_LMS_ADMIN = ("membership.lms.add_lms_admin", Scope.LMS)
+    REMOVE_LMS_ADMIN = ("membership.lms.remove_lms_admin", Scope.LMS)
+    LIST_LMS_ADMINS = ("membership.lms.list_lms_admins", Scope.LMS)
 
-    ADD_COURSE_CREATOR = ("membership.hub.add_course_creator", Scope.HUB)
-    REMOVE_COURSE_CREATOR = ("membership.hub.remove_course_creator", Scope.HUB)
-    LIST_COURSE_CREATORS = ("membership.hub.list_course_creators", Scope.HUB)
+    ADD_COURSE_CREATOR = ("membership.lms.add_course_creator", Scope.LMS)
+    REMOVE_COURSE_CREATOR = ("membership.lms.remove_course_creator", Scope.LMS)
+    LIST_COURSE_CREATORS = ("membership.lms.list_course_creators", Scope.LMS)
 
     # ------------------------------
     # Course-level permissions
@@ -47,9 +47,9 @@ class MembershipPermissionSets:
 
     MANAGE_HUB_ADMINS = frozenset(
         [
-            MembershipPermission.ADD_HUB_ADMIN,
-            MembershipPermission.REMOVE_HUB_ADMIN,
-            MembershipPermission.LIST_HUB_ADMINS,
+            MembershipPermission.ADD_LMS_ADMIN,
+            MembershipPermission.REMOVE_LMS_ADMIN,
+            MembershipPermission.LIST_LMS_ADMINS,
         ]
     )
 
@@ -117,7 +117,7 @@ class MembershipPermissionSets:
 
 
 MEMBERSHIP_ROLE_PERMISSIONS: RolePermissions = {
-    Role.HUB_ADMIN: frozenset(
+    Role.LMS_ADMIN: frozenset(
         MembershipPermissionSets.MANAGE_HUB_ADMINS
         | MembershipPermissionSets.MANAGE_COURSE_CREATORS
         | MembershipPermissionSets.MANAGE_COURSE_OWNERS

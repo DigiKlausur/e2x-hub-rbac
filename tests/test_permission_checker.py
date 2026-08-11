@@ -14,7 +14,7 @@ class TestPermissionCheckerInit:
         assert student_checker.user == math101_2024ws_student_user
 
     def test_groups_property(self, student_checker):
-        assert student_checker.groups == ["term.math101.2024ws.student"]
+        assert student_checker.groups == ["lms.course.math101.term.2024ws.student"]
 
     def test_assignments_parsed(self, student_checker):
         assert len(student_checker.assignments) == 1
@@ -23,7 +23,9 @@ class TestPermissionCheckerInit:
         )
 
     def test_unknown_groups_are_ignored(self, role_permissions):
-        user = UserStub(username="alice", groups=["term.math101.2024ws.student", "custom-group"])
+        user = UserStub(
+            username="alice", groups=["lms.course.math101.term.2024ws.student", "custom-group"]
+        )
         checker = PermissionChecker(user, role_permissions)
         assert len(checker.assignments) == 1
 
@@ -142,7 +144,7 @@ class TestGetRolesInCourse:
 
     def test_hub_admin_role_returned_for_any_course(self, hub_admin_checker):
         roles = hub_admin_checker.get_roles_in_course("any_course")
-        assert Role.HUB_ADMIN in roles
+        assert Role.LMS_ADMIN in roles
 
     def test_multi_role_user(self, multi_role_checker):
         roles = multi_role_checker.get_roles_in_course("math101")
@@ -167,7 +169,7 @@ class TestGetRolesInTerm:
 
     def test_instructor_role_returned_for_any_term(self, hub_admin_checker):
         roles = hub_admin_checker.get_roles_in_term("any_course", "any_term")
-        assert Role.HUB_ADMIN in roles
+        assert Role.LMS_ADMIN in roles
 
     def test_multi_role_user(self, multi_role_checker):
         roles = multi_role_checker.get_roles_in_term("math101", "2024ws")

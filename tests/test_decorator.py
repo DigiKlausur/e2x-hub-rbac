@@ -63,11 +63,11 @@ class TestRequirePermission:
         )
         assert result == "graded"
 
-    def test_hub_admin_can_call_all_methods(self, api, hub_admin_user):
-        assert api.get_term_data(hub_admin_user, course_id="c1", term_id="t1") == "c1/t1"
-        assert api.submit_grade(hub_admin_user, course_id="c1", term_id="t1") == "graded"
-        assert api.manage_course(hub_admin_user, course_id="c1") == "managing c1"
-        assert api.hub_action(hub_admin_user) == "hub action done"
+    def test_hub_admin_can_call_all_methods(self, api, lms_admin_user):
+        assert api.get_term_data(lms_admin_user, course_id="c1", term_id="t1") == "c1/t1"
+        assert api.submit_grade(lms_admin_user, course_id="c1", term_id="t1") == "graded"
+        assert api.manage_course(lms_admin_user, course_id="c1") == "managing c1"
+        assert api.hub_action(lms_admin_user) == "hub action done"
 
     def test_no_role_user_denied(self, api, no_role_user):
         with pytest.raises(APIPermissionError):

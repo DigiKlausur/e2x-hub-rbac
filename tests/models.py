@@ -15,7 +15,7 @@ class DummyPermission(PermissionEnum):
     """Test permissions covering all three scopes."""
 
     # Hub-scoped
-    HUB_MANAGE = ("hub_manage", Scope.HUB)
+    HUB_MANAGE = ("hub_manage", Scope.LMS)
     # Course-scoped
     COURSE_READ = ("course_read", Scope.COURSE)
     COURSE_MANAGE = ("course_manage", Scope.COURSE)
@@ -30,7 +30,7 @@ class DummyPermission(PermissionEnum):
 
 
 TEST_ROLE_PERMISSIONS: RolePermissions = {
-    Role.HUB_ADMIN: frozenset(
+    Role.LMS_ADMIN: frozenset(
         [
             DummyPermission.HUB_MANAGE,
             DummyPermission.COURSE_READ,
