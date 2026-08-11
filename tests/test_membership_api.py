@@ -44,10 +44,10 @@ class TestMembershipAPIHubAdmins:
         await membership_api.add_lms_admins(lms_admin_user, usernames)
 
         mock_backend.ensure_group_exists.assert_called_once_with(
-            "lms.lms_admin", create_if_missing=True
+            "lms.lms-admin", create_if_missing=True
         )
         mock_backend.ensure_users_exist.assert_called_once_with(usernames, create_if_missing=False)
-        mock_backend.add_users_to_group.assert_called_once_with("lms.lms_admin", usernames)
+        mock_backend.add_users_to_group.assert_called_once_with("lms.lms-admin", usernames)
 
     @pytest.mark.asyncio
     async def test_add_lms_admins_with_lms_add_enabled(
@@ -73,8 +73,8 @@ class TestMembershipAPIHubAdmins:
         usernames = ["user1", "user2"]
         await membership_api.remove_lms_admins(lms_admin_user, usernames)
 
-        mock_backend.get_group_members.assert_called_once_with("lms.lms_admin")
-        mock_backend.remove_users_from_group.assert_called_once_with("lms.lms_admin", usernames)
+        mock_backend.get_group_members.assert_called_once_with("lms.lms-admin")
+        mock_backend.remove_users_from_group.assert_called_once_with("lms.lms-admin", usernames)
 
     @pytest.mark.asyncio
     async def test_remove_lms_admins_filters_non_members(
@@ -85,7 +85,7 @@ class TestMembershipAPIHubAdmins:
         await membership_api.remove_lms_admins(lms_admin_user, usernames)
 
         # Should only remove user1 since user2 is not a member
-        mock_backend.remove_users_from_group.assert_called_once_with("lms.lms_admin", ["user1"])
+        mock_backend.remove_users_from_group.assert_called_once_with("lms.lms-admin", ["user1"])
 
     @pytest.mark.asyncio
     async def test_remove_lms_admins_group_not_found(
@@ -113,7 +113,7 @@ class TestMembershipAPIHubAdmins:
         result = await membership_api.list_lms_admins(lms_admin_user)
 
         assert result == expected_members
-        mock_backend.get_group_members.assert_called_once_with("lms.lms_admin")
+        mock_backend.get_group_members.assert_called_once_with("lms.lms-admin")
 
     @pytest.mark.asyncio
     async def test_list_lms_admins_group_not_found(
@@ -144,9 +144,9 @@ class TestMembershipAPICourseCreators:
         await membership_api.add_course_creators(lms_admin_user, usernames)
 
         mock_backend.ensure_group_exists.assert_called_once_with(
-            "lms.course_creator", create_if_missing=True
+            "lms.course-creator", create_if_missing=True
         )
-        mock_backend.add_users_to_group.assert_called_once_with("lms.course_creator", usernames)
+        mock_backend.add_users_to_group.assert_called_once_with("lms.course-creator", usernames)
 
     @pytest.mark.asyncio
     async def test_add_course_creators_permission_denied(
@@ -163,7 +163,7 @@ class TestMembershipAPICourseCreators:
         await membership_api.remove_course_creators(lms_admin_user, ["creator1"])
 
         mock_backend.remove_users_from_group.assert_called_once_with(
-            "lms.course_creator", ["creator1"]
+            "lms.course-creator", ["creator1"]
         )
 
     @pytest.mark.asyncio
@@ -189,7 +189,7 @@ class TestMembershipAPICourseOwners:
         usernames = ["owner1"]
         await membership_api.add_course_owners(lms_admin_user, course_id, usernames)
 
-        expected_group = "lms.course.math101.course_owner"
+        expected_group = "lms.course.math101.course-owner"
         mock_backend.ensure_group_exists.assert_called_once_with(
             expected_group, create_if_missing=True
         )
@@ -198,7 +198,7 @@ class TestMembershipAPICourseOwners:
     @pytest.mark.asyncio
     async def test_add_course_owners_as_course_owner(self, membership_api, mock_backend):
         # Create a user who is already a course owner for this course
-        course_owner = UserStub(username="owner", groups=["lms.course.math101.course_owner"])
+        course_owner = UserStub(username="owner", groups=["lms.course.math101.course-owner"])
         course_id = "math101"
         usernames = ["new_owner"]
 
@@ -223,7 +223,7 @@ class TestMembershipAPICourseOwners:
         await membership_api.remove_course_owners(lms_admin_user, course_id, ["owner1"])
 
         mock_backend.remove_users_from_group.assert_called_once_with(
-            "lms.course.math101.course_owner", ["owner1"]
+            "lms.course.math101.course-owner", ["owner1"]
         )
 
     @pytest.mark.asyncio
@@ -235,7 +235,7 @@ class TestMembershipAPICourseOwners:
         result = await membership_api.list_course_owners(lms_admin_user, course_id)
 
         assert result == expected
-        mock_backend.get_group_members.assert_called_once_with("lms.course.math101.course_owner")
+        mock_backend.get_group_members.assert_called_once_with("lms.course.math101.course-owner")
 
 
 class TestMembershipAPIInstructors:
@@ -243,7 +243,7 @@ class TestMembershipAPIInstructors:
 
     @pytest.mark.asyncio
     async def test_add_instructors_as_course_owner(self, membership_api, mock_backend):
-        course_owner = UserStub(username="owner", groups=["lms.course.math101.course_owner"])
+        course_owner = UserStub(username="owner", groups=["lms.course.math101.course-owner"])
         course_id = "math101"
         term_id = "2024ws"
         usernames = ["instructor1"]
@@ -303,7 +303,7 @@ class TestMembershipAPITeachingAssistants:
         usernames = ["ta1"]
         await membership_api.add_teaching_assistants(lms_admin_user, "math101", "2024ws", usernames)
 
-        expected_group = "lms.course.math101.term.2024ws.teaching_assistant"
+        expected_group = "lms.course.math101.term.2024ws.teaching-assistant"
         mock_backend.ensure_group_exists.assert_called_once_with(
             expected_group, create_if_missing=True
         )
@@ -326,7 +326,7 @@ class TestMembershipAPITeachingAssistants:
         )
 
         mock_backend.remove_users_from_group.assert_called_once_with(
-            "lms.course.math101.term.2024ws.teaching_assistant", ["ta1"]
+            "lms.course.math101.term.2024ws.teaching-assistant", ["ta1"]
         )
 
     @pytest.mark.asyncio
@@ -472,7 +472,7 @@ class TestMembershipAPIEdgeCases:
 
         mock_backend.ensure_group_exists.assert_called_once()
         mock_backend.ensure_users_exist.assert_called_once_with([], create_if_missing=False)
-        mock_backend.add_users_to_group.assert_called_once_with("lms.lms_admin", [])
+        mock_backend.add_users_to_group.assert_called_once_with("lms.lms-admin", [])
 
     @pytest.mark.asyncio
     async def test_remove_from_nonexistent_group(

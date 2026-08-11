@@ -296,14 +296,14 @@ Example of permission checking:
 
 ```python
 # Course owner can manage their course
-course_owner = User(username="prof", groups=["course.math101.course_owner"])
+course_owner = User(username="prof", groups=["course.math101.course-owner"])
 await membership_api.add_students(course_owner, "math101", "2024ws", ["student1"])  # ✓ Succeeds
 
 # But cannot manage a different course
 await membership_api.add_students(course_owner, "cs101", "2024ws", ["student1"])  # ✗ Raises APIPermissionError
 
 # Teaching assistant can add students
-ta = User(username="ta", groups=["term.math101.2024ws.teaching_assistant"])
+ta = User(username="ta", groups=["term.math101.2024ws.teaching-assistant"])
 await membership_api.add_students(ta, "math101", "2024ws", ["student2"])  # ✓ Succeeds
 
 # But cannot remove instructors

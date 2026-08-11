@@ -18,11 +18,11 @@ class Role(Enum):
     role_name: str
     scope: Scope
 
-    LMS_ADMIN = ("lms_admin", Scope.LMS)
-    COURSE_CREATOR = ("course_creator", Scope.LMS)
-    COURSE_OWNER = ("course_owner", Scope.COURSE)
+    LMS_ADMIN = ("lms-admin", Scope.LMS)
+    COURSE_CREATOR = ("course-creator", Scope.LMS)
+    COURSE_OWNER = ("course-owner", Scope.COURSE)
     INSTRUCTOR = ("instructor", Scope.TERM)
-    TEACHING_ASSISTANT = ("teaching_assistant", Scope.TERM)
+    TEACHING_ASSISTANT = ("teaching-assistant", Scope.TERM)
     OBSERVER = ("observer", Scope.TERM)
     STUDENT = ("student", Scope.TERM)
 

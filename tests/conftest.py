@@ -22,12 +22,12 @@ def role_permissions() -> RolePermissions:
 
 @pytest.fixture
 def lms_admin_user() -> UserLike:
-    return UserStub(username="admin", groups=["lms.lms_admin"])
+    return UserStub(username="admin", groups=["lms.lms-admin"])
 
 
 @pytest.fixture
 def math101_course_owner_user() -> UserLike:
-    return UserStub(username="course_owner", groups=["lms.course.math101.course_owner"])
+    return UserStub(username="course-owner", groups=["lms.course.math101.course-owner"])
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def math101_2024ws_student_user() -> UserLike:
 
 @pytest.fixture
 def math101_2024ws_teaching_assistant_user() -> UserLike:
-    return UserStub(username="bob", groups=["lms.course.math101.term.2024ws.teaching_assistant"])
+    return UserStub(username="bob", groups=["lms.course.math101.term.2024ws.teaching-assistant"])
 
 
 @pytest.fixture
@@ -47,8 +47,8 @@ def multi_course_multi_role_user() -> UserLike:
         username="multi",
         groups=[
             "lms.course.math101.term.2024ws.student",
-            "lms.course.phys201.term.2024ws.teaching_assistant",
-            "lms.course.chem301.course_owner",
+            "lms.course.phys201.term.2024ws.teaching-assistant",
+            "lms.course.chem301.course-owner",
         ],
     )
 

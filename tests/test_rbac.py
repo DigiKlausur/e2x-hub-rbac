@@ -21,11 +21,11 @@ class TestRole:
     @pytest.mark.parametrize(
         "role, expected_name, expected_scope",
         [
-            (Role.LMS_ADMIN, "lms_admin", Scope.LMS),
-            (Role.COURSE_CREATOR, "course_creator", Scope.LMS),
-            (Role.COURSE_OWNER, "course_owner", Scope.COURSE),
+            (Role.LMS_ADMIN, "lms-admin", Scope.LMS),
+            (Role.COURSE_CREATOR, "course-creator", Scope.LMS),
+            (Role.COURSE_OWNER, "course-owner", Scope.COURSE),
             (Role.INSTRUCTOR, "instructor", Scope.TERM),
-            (Role.TEACHING_ASSISTANT, "teaching_assistant", Scope.TERM),
+            (Role.TEACHING_ASSISTANT, "teaching-assistant", Scope.TERM),
             (Role.OBSERVER, "observer", Scope.TERM),
             (Role.STUDENT, "student", Scope.TERM),
         ],
@@ -35,7 +35,7 @@ class TestRole:
         assert role.scope is expected_scope
 
     def test_str(self):
-        assert str(Role.TEACHING_ASSISTANT) == "teaching_assistant"
+        assert str(Role.TEACHING_ASSISTANT) == "teaching-assistant"
 
 
 # ---------------------------------------------------------------------------
@@ -83,12 +83,12 @@ class TestRoleAssignmentConstructors:
 
 class TestGroupName:
     def test_hub_group_name(self):
-        assert RoleAssignment.lms(Role.LMS_ADMIN).group_name == "lms.lms_admin"
+        assert RoleAssignment.lms(Role.LMS_ADMIN).group_name == "lms.lms-admin"
 
     def test_course_group_name(self):
         assert (
             RoleAssignment.course(Role.COURSE_OWNER, "math101").group_name
-            == "lms.course.math101.course_owner"
+            == "lms.course.math101.course-owner"
         )
 
     def test_term_group_name(self):
@@ -107,10 +107,10 @@ class TestFromGroupName:
     @pytest.mark.parametrize(
         "group_name, expected",
         [
-            ("lms.lms_admin", RoleAssignment.lms(Role.LMS_ADMIN)),
-            ("lms.course_creator", RoleAssignment.lms(Role.COURSE_CREATOR)),
+            ("lms.lms-admin", RoleAssignment.lms(Role.LMS_ADMIN)),
+            ("lms.course-creator", RoleAssignment.lms(Role.COURSE_CREATOR)),
             (
-                "lms.course.math101.course_owner",
+                "lms.course.math101.course-owner",
                 RoleAssignment.course(Role.COURSE_OWNER, "math101"),
             ),
             (
@@ -118,7 +118,7 @@ class TestFromGroupName:
                 RoleAssignment.term(Role.STUDENT, "math101", "2024ws"),
             ),
             (
-                "lms.course.math101.term.2024ws.teaching_assistant",
+                "lms.course.math101.term.2024ws.teaching-assistant",
                 RoleAssignment.term(Role.TEACHING_ASSISTANT, "math101", "2024ws"),
             ),
             (
@@ -142,7 +142,7 @@ class TestFromGroupName:
             "lms.unknown_role",  # unknown role name
             "lms.course.math101",  # missing role
             "lms.course.math101.term.2024ws",  # missing role
-            "lms.course.math101.term.2024ws.lms_admin",  # wrong scope
+            "lms.course.math101.term.2024ws.lms-admin",  # wrong scope
             "",
         ],
     )
