@@ -20,6 +20,7 @@ def mock_backend():
     backend.add_users_to_group = AsyncMock()
     backend.remove_users_from_group = AsyncMock()
     backend.get_group_members = AsyncMock(return_value=[])
+    backend.delete_group = AsyncMock()
     return backend
 
 
@@ -33,6 +34,12 @@ def membership_api(mock_backend):
 def membership_api_with_hub_add(mock_backend):
     """MembershipAPI instance with add_users_to_hub enabled."""
     return MembershipAPI(group_backend=mock_backend, add_users_to_hub=True)
+
+
+@pytest.fixture
+def membership_api_with_delete_empty_groups(mock_backend):
+    """MembershipAPI instance with delete_empty_groups enabled."""
+    return MembershipAPI(group_backend=mock_backend, delete_empty_groups=True)
 
 
 class TestMembershipAPIHubAdmins:
@@ -484,6 +491,36 @@ class TestMembershipAPIEdgeCases:
         await membership_api.remove_course_creators(lms_admin_user, ["creator1"])
 
         mock_backend.remove_users_from_group.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_remove_last_member_deletes_group_when_enabled(
+        self, membership_api_with_delete_empty_groups, lms_admin_user, mock_backend
+    ):
+        mock_backend.get_group_members.return_value = ["user1"]
+
+        await membership_api_with_delete_empty_groups.remove_lms_admins(lms_admin_user, ["user1"])
+
+        mock_backend.delete_group.assert_called_once_with("lms.lms-admin")
+
+    @pytest.mark.asyncio
+    async def test_remove_last_member_keeps_group_when_disabled(
+        self, membership_api, lms_admin_user, mock_backend
+    ):
+        mock_backend.get_group_members.return_value = ["user1"]
+
+        await membership_api.remove_lms_admins(lms_admin_user, ["user1"])
+
+        mock_backend.delete_group.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_remove_partial_members_keeps_group_when_enabled(
+        self, membership_api_with_delete_empty_groups, lms_admin_user, mock_backend
+    ):
+        mock_backend.get_group_members.return_value = ["user1", "user2"]
+
+        await membership_api_with_delete_empty_groups.remove_lms_admins(lms_admin_user, ["user1"])
+
+        mock_backend.delete_group.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_hub_admin_has_all_permissions(

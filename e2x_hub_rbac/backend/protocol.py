@@ -24,3 +24,7 @@ class GroupBackend(Protocol):
     async def get_group_members(self, group_name: str) -> list[str]:
         """Return the current members of a group."""
         ...
+
+    async def delete_group(self, group_name: str) -> None:
+        """Delete a group."""
+        ...
