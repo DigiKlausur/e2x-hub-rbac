@@ -15,11 +15,13 @@ class MembershipAPI(BaseAPI):
         self,
         group_backend: GroupBackend,
         add_users_to_hub: bool = False,
+        delete_empty_groups: bool = False,
         logger: Logger | None = None,
     ):
         super().__init__(role_permissions=MEMBERSHIP_ROLE_PERMISSIONS, logger=logger)
         self._group_backend = group_backend
         self.add_users_to_hub = add_users_to_hub
+        self.delete_empty_groups = delete_empty_groups
 
     @property
     def backend(self) -> GroupBackend:
@@ -36,7 +38,11 @@ class MembershipAPI(BaseAPI):
         try:
             current_members = await self.backend.get_group_members(group_name)
             usernames_to_remove = [u for u in usernames if u in current_members]
+            if not usernames_to_remove:
+                return
             await self.backend.remove_users_from_group(group_name, usernames_to_remove)
+            if self.delete_empty_groups and set(usernames_to_remove) == set(current_members):
+                await self.backend.delete_group(group_name)
         except GroupNotFoundError:
             # Group doesn't exist, so no members to remove
             return

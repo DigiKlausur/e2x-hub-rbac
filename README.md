@@ -332,7 +332,8 @@ hub_backend = HubAPI(
 # Create the membership API
 membership_api = MembershipAPI(
     group_backend=hub_backend,
-    add_users_to_hub=True  # Automatically create users if they don't exist
+    add_users_to_hub=True,     # Automatically create users if they don't exist
+    delete_empty_groups=True,  # Delete a group once its last member is removed
 )
 ```
 
@@ -455,6 +456,10 @@ class CustomBackend(GroupBackend):
         ...
 
     async def get_group_members(self, group_name: str) -> list[str]:
+        # Your implementation
+        ...
+
+    async def delete_group(self, group_name: str) -> None:
         # Your implementation
         ...
 ```
